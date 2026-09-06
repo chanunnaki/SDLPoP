@@ -106,7 +106,9 @@ void pop_main() {
 	init_timer(BASE_FPS);
 	parse_cmdline_sound();
 
+#ifndef __PSP__
 	show_loading();
+#endif
 	init_pak();
 	set_joy_mode();
 	cheats_enabled = check_param("megahit") != NULL;
@@ -2417,8 +2419,10 @@ void show_copyprot(int where) {
 
 // seg000:2489
 void show_loading() {
+#ifndef __PSP__
 	show_text(&screen_rect, halign_center, valign_middle, "Loading. . . .");
 	update_screen();
+#endif
 }
 
 // data:42C4
