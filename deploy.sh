@@ -22,6 +22,9 @@ cp "${DIST_DIR}/EBOOT.PBP" "${PPSSPP_CAT_DIR}/"
 cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_CAT_DIR}/"
 rm -rf "${PPSSPP_CAT_DIR}/data"
 cp -R "${DIST_DIR}/data" "${PPSSPP_CAT_DIR}/"
+if [ -d "${DIST_DIR}/mods" ]; then
+    cp -R "${DIST_DIR}/mods" "${PPSSPP_CAT_DIR}/"
+fi
 echo "[✓] Deployed to PPSSPP Homebrew category: ${PPSSPP_CAT_DIR}"
 
 PPSSPP_STANDARD_DIR="${HOME}/.config/ppsspp/PSP/GAME/${FOLDER}"
@@ -30,6 +33,9 @@ cp "${DIST_DIR}/EBOOT.PBP" "${PPSSPP_STANDARD_DIR}/"
 cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_STANDARD_DIR}/"
 rm -rf "${PPSSPP_STANDARD_DIR}/data"
 cp -R "${DIST_DIR}/data" "${PPSSPP_STANDARD_DIR}/"
+if [ -d "${DIST_DIR}/mods" ]; then
+    cp -R "${DIST_DIR}/mods" "${PPSSPP_STANDARD_DIR}/"
+fi
 echo "[✓] Deployed to PPSSPP standard Game dir: ${PPSSPP_STANDARD_DIR}"
 
 # 2. Hardware Deployment (nexus-b via ssh n)
@@ -53,7 +59,18 @@ deploy_hw() {
         scp -q "${DIST_DIR}/data/res.pak" "${HOST}:${target_dir}/data/res.pak"
     fi
 
-    # 2. Only transfer heavy assets if missing on the target
+    # 2. Sync mods folder to target
+    if [ -d "${DIST_DIR}/mods" ]; then
+        echo "[*] Syncing mods directory to ${unit}..."
+        ssh "$HOST" "mkdir -p '${target_dir}/mods'"
+        rsync -rt --modify-window=2 --exclude=".*" --exclude="*.DS_Store" \
+            "${DIST_DIR}/mods/" "${HOST}:${target_dir}/mods/"
+    fi
+
+    # 3. Clean up stale runtime cfg so new ini takes effect immediately
+    ssh "$HOST" "rm -f '${target_dir}/SDLPoP.cfg'"
+
+    # 4. Only transfer heavy assets if missing on the target
     if ! ssh "$HOST" "test -d '${target_dir}/data'" 2>/dev/null; then
         echo "[*] Initializing asset directory on ${unit} (one-time copy)..."
         rsync -a --inplace --exclude=".*" --exclude="*.DS_Store" \

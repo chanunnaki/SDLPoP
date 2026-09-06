@@ -24,6 +24,10 @@ if [ ! -d "${DIST_DIR}/data" ]; then
 else
     rsync -a --delete "${SCRIPT_DIR}/data/" "${DIST_DIR}/data/"
 fi
+if [ -d "${SCRIPT_DIR}/mods" ]; then
+    mkdir -p "${DIST_DIR}/mods"
+    rsync -a "${SCRIPT_DIR}/mods/" "${DIST_DIR}/mods/"
+fi
 
 echo "=== Build Complete! ==="
 ls -lh "${DIST_DIR}/EBOOT.PBP"

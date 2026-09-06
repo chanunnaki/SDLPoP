@@ -923,8 +923,7 @@ image_type* load_image(int resource_id, dat_pal_type* palette) {
 	image_type* image = NULL;
 	switch (result) {
 		case data_none:
-			return NULL;
-		break;
+			break;
 		case data_DAT: { // DAT
 			image = decode_image((image_data_type*) image_data, palette);
 		} break;
@@ -944,6 +943,19 @@ image_type* load_image(int resource_id, dat_pal_type* palette) {
 		} break;
 	}
 	if (image_data != NULL) free(image_data);
+
+	// Fallback to res.pak if custom levelset didn't provide this sprite
+	if (image == NULL && is_pak_available()) {
+		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+			char folder[16];
+			strncpy(folder, p->filename, sizeof(folder));
+			folder[15] = '\0';
+			size_t len = strlen(folder);
+			if (len >= 5 && folder[len-4] == '.') folder[len-4] = '\0';
+			image = load_image_from_pak(folder, resource_id);
+			if (image != NULL) break;
+		}
+	}
 
 
 	if (image != NULL) {
@@ -3055,7 +3067,7 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 					//printf("loading (binary) %s",image_filename_mod);
 					fp = fopen(locate_file(image_filename_mod), "rb");
 				}
-				if (fp == NULL && !skip_normal_data_files) {
+				if (fp == NULL && !skip_normal_data_files && !is_pak_available()) {
 					fp = fopen(locate_file(image_filename), "rb");
 				}
 			}
@@ -3134,19 +3146,42 @@ void *load_from_opendats_alloc(int resource, const char* extension, data_locatio
 	load_from_opendats_metadata(resource, extension, &fp, &result, &checksum, &size, &pointer);
 	if (out_result != NULL) *out_result = result;
 	if (out_size != NULL) *out_size = size;
-	if (result == data_none) return NULL;
-	void* area = malloc(size);
-	//read(fd, area, size);
-	if (fread(area, size, 1, fp) != 1) {
-		fprintf(stderr, "%s: %s, resource %d, size %d, failed: %s\n",
-			__func__, pointer->filename, resource,
-			size, strerror(errno));
-		free(area);
-		area = NULL;
+	if (result != data_none && fp != NULL) {
+		void* area = malloc(size);
+		//read(fd, area, size);
+		if (fread(area, size, 1, fp) != 1) {
+			fprintf(stderr, "%s: %s, resource %d, size %d, failed: %s\n",
+				__func__, pointer->filename, resource,
+				size, strerror(errno));
+			free(area);
+			area = NULL;
+		}
+		if (result == data_directory) fclose(fp);
+		/* XXX: check checksum */
+		if (area != NULL) return area;
 	}
-	if (result == data_directory) fclose(fp);
-	/* XXX: check checksum */
-	return area;
+
+	// Fallback to res.pak if custom levelset didn't provide this data/palette
+	if (is_pak_available()) {
+		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+			char folder[16];
+			strncpy(folder, p->filename, sizeof(folder));
+			folder[15] = '\0';
+			size_t len = strlen(folder);
+			if (len >= 5 && folder[len-4] == '.') folder[len-4] = '\0';
+			int pak_sz = 0;
+			void* area = load_data_from_pak(folder, resource, extension, &pak_sz);
+			if (area != NULL) {
+				if (out_result != NULL) *out_result = data_directory;
+				if (out_size != NULL) *out_size = pak_sz;
+				return area;
+			}
+		}
+	}
+
+	if (out_result != NULL) *out_result = data_none;
+	if (out_size != NULL) *out_size = 0;
+	return NULL;
 }
 
 int load_from_opendats_to_area(int resource,void* area,int length, const char* extension) {
@@ -3178,15 +3213,36 @@ int load_from_opendats_to_area(int resource,void* area,int length, const char* e
 	int size;
 	FILE* fp = NULL;
 	load_from_opendats_metadata(resource, extension, &fp, &result, &checksum, &size, &pointer);
-	if (result == data_none) return 0;
-	if (fread(area, MIN(size, length), 1, fp) != 1) {
-		fprintf(stderr, "%s: %s, resource %d, size %d, failed: %s\n",
-			__func__, pointer->filename, resource,
-			size, strerror(errno));
-		memset(area, 0, MIN(size, length));
+	if (result != data_none && fp != NULL) {
+		if (fread(area, MIN(size, length), 1, fp) != 1) {
+			fprintf(stderr, "%s: %s, resource %d, size %d, failed: %s\n",
+				__func__, pointer->filename, resource,
+				size, strerror(errno));
+			memset(area, 0, MIN(size, length));
+		}
+		if (result == data_directory) fclose(fp);
+		/* XXX: check checksum */
+		return 0;
 	}
-	if (result == data_directory) fclose(fp);
-	/* XXX: check checksum */
+
+	// Fallback to res.pak
+	if (is_pak_available()) {
+		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+			char folder[16];
+			strncpy(folder, p->filename, sizeof(folder));
+			folder[15] = '\0';
+			size_t len = strlen(folder);
+			if (len >= 5 && folder[len-4] == '.') folder[len-4] = '\0';
+			int pak_sz = 0;
+			void* pak_data = load_data_from_pak(folder, resource, extension, &pak_sz);
+			if (pak_data != NULL) {
+				int copy_len = MIN(pak_sz, length);
+				memcpy(area, pak_data, copy_len);
+				free(pak_data);
+				return copy_len;
+			}
+		}
+	}
 	return 0;
 }
 
