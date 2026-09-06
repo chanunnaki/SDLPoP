@@ -3782,7 +3782,7 @@ void process_events() {
 				}
 #endif
 #ifdef __PSP__
-				if (start_level < 0) {
+				if (is_in_title) {
 					last_key_scancode = SDL_SCANCODE_RETURN;
 				}
 #endif
@@ -3887,7 +3887,7 @@ void process_events() {
 #endif
 				if (event.type == SDL_JOYBUTTONDOWN) {
 #ifdef __PSP__
-					if (start_level < 0) {
+					if (is_in_title) {
 						last_key_scancode = SDL_SCANCODE_RETURN;
 					}
 #endif

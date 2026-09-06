@@ -64,6 +64,7 @@ extern const rect_type screen_rect INIT(= {0, 0, 200, 320});
 extern word draw_mode;
 // data:42B8
 extern short start_level INIT(= -1);
+extern bool is_in_title INIT(= false);
 // data:4CE6
 extern byte * guard_palettes;
 // data:4338

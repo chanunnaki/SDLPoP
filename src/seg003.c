@@ -25,6 +25,8 @@ sbyte distance_mirror;
 
 // seg003:0000
 void init_game(int level) {
+	is_in_title = false;
+	if (start_level < 0) start_level = level;
 	if(offscreen_surface) {
 		free_surface(offscreen_surface); // missing in original
 		offscreen_surface = NULL;

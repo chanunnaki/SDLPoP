@@ -230,7 +230,9 @@ void start_game() {
 	}
 #endif
 	if (custom->skip_title) { // CusPop option: skip the title sequence (level loads instantly)
+		is_in_title = false;
 		int level_number = (start_level >= 0) ? start_level : custom->first_level;
+		start_level = level_number;
 		init_game(level_number);
 		return;
 	}
@@ -238,6 +240,7 @@ void start_game() {
 	if (start_level < 0) {
 		show_title();
 	} else {
+		is_in_title = false;
 		init_game(start_level);
 	}
 }
@@ -555,7 +558,7 @@ int process_key() {
 	if (key == key_esc) key = SDL_SCANCODE_ESCAPE; else
 	/*nothing*/;
 
-	if (start_level < 0) {
+	if (is_in_title) {
 		bool any_button = (key != 0) || (control_shift != 0);
 #ifdef __PSP__
 		for (int i = 0; i < JOYINPUT_NUM; ++i) {
@@ -563,6 +566,7 @@ int process_key() {
 		}
 #endif
 		if (any_button) {
+			is_in_title = false;
 			#ifdef USE_QUICKSAVE
 			if (key == SDL_SCANCODE_F9) need_quick_load = 1;
 			#endif
@@ -1965,8 +1969,9 @@ void gen_palace_wall_colors() {
 const rect_type rect_titles = {106,24,195,296};
 
 #define CHECK_INTRO_SKIP() do { \
-	if (start_level >= 0) return; \
+	if (start_level >= 0) { is_in_title = false; return; } \
 	if (do_paused() != 0) { \
+		is_in_title = false; \
 		stop_sounds(); \
 		start_level = custom->first_level; \
 		start_game(); \
@@ -1975,8 +1980,9 @@ const rect_type rect_titles = {106,24,195,296};
 } while(0)
 
 #define DO_WAIT_SKIP(timer) do { \
-	if (start_level >= 0) return; \
+	if (start_level >= 0) { is_in_title = false; return; } \
 	if (do_wait(timer) != 0 || start_level >= 0) { \
+		is_in_title = false; \
 		stop_sounds(); \
 		start_level = custom->first_level; \
 		start_game(); \
@@ -1985,8 +1991,9 @@ const rect_type rect_titles = {106,24,195,296};
 } while(0)
 
 #define POP_WAIT_SKIP(timer, time) do { \
-	if (start_level >= 0) return; \
+	if (start_level >= 0) { is_in_title = false; return; } \
 	if (pop_wait(timer, time) != 0 || start_level >= 0) { \
+		is_in_title = false; \
 		stop_sounds(); \
 		start_level = custom->first_level; \
 		start_game(); \
@@ -1996,6 +2003,7 @@ const rect_type rect_titles = {106,24,195,296};
 
 // seg000:17E6
 void show_title() {
+	is_in_title = true;
 	load_opt_sounds(sound_50_story_2_princess, sound_55_story_1_absence); // main theme, story, princess door
 	dont_reset_time = 0;
 	if(offscreen_surface) free_surface(offscreen_surface); // missing in original
@@ -2094,6 +2102,7 @@ void show_title() {
 	free_surface(offscreen_surface);
 	offscreen_surface = NULL; // added
 	release_title_images();
+	is_in_title = false;
 	init_game(0);
 }
 
