@@ -3715,6 +3715,11 @@ void process_events() {
 					is_keyboard_mode = 0;
 				}
 #endif
+#ifdef __PSP__
+				if (start_level < 0) {
+					last_key_scancode = SDL_SCANCODE_RETURN;
+				}
+#endif
 				switch (event.cbutton.button)
 				{
 					case SDL_CONTROLLER_BUTTON_DPAD_LEFT:  joy_button_states[JOYINPUT_DPAD_LEFT] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW; break; // left
@@ -3815,6 +3820,11 @@ void process_events() {
 				}
 #endif
 				if (event.type == SDL_JOYBUTTONDOWN) {
+#ifdef __PSP__
+					if (start_level < 0) {
+						last_key_scancode = SDL_SCANCODE_RETURN;
+					}
+#endif
 					if      (event.jbutton.button == SDL_JOYSTICK_BUTTON_Y)   joy_button_states[JOYINPUT_Y] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW; // Y (up)
 					else if (event.jbutton.button == SDL_JOYSTICK_BUTTON_X)   joy_button_states[JOYINPUT_X] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW;    // X (Shift)
 				}

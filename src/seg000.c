@@ -552,7 +552,13 @@ int process_key() {
 	/*nothing*/;
 
 	if (start_level < 0) {
-		if (key || control_shift) {
+		bool any_button = (key != 0) || (control_shift != 0);
+#ifdef __PSP__
+		for (int i = 0; i < JOYINPUT_NUM; ++i) {
+			if (joy_button_states[i] != 0) any_button = true;
+		}
+#endif
+		if (any_button) {
 			#ifdef USE_QUICKSAVE
 			if (key == SDL_SCANCODE_F9) need_quick_load = 1;
 			#endif
@@ -577,7 +583,9 @@ int process_key() {
 				is_global_fading = 0;
 			}
 #endif
+			stop_sounds();
 			start_game();
+			return SDL_SCANCODE_RETURN;
 		}
 	}
 	// If the Kid died, Enter or Shift will restart the level.
@@ -1951,6 +1959,36 @@ void gen_palace_wall_colors() {
 // data:042E
 const rect_type rect_titles = {106,24,195,296};
 
+#define CHECK_INTRO_SKIP() do { \
+	if (start_level >= 0) return; \
+	if (do_paused() != 0) { \
+		stop_sounds(); \
+		start_level = custom->first_level; \
+		start_game(); \
+		return; \
+	} \
+} while(0)
+
+#define DO_WAIT_SKIP(timer) do { \
+	if (start_level >= 0) return; \
+	if (do_wait(timer) != 0 || start_level >= 0) { \
+		stop_sounds(); \
+		start_level = custom->first_level; \
+		start_game(); \
+		return; \
+	} \
+} while(0)
+
+#define POP_WAIT_SKIP(timer, time) do { \
+	if (start_level >= 0) return; \
+	if (pop_wait(timer, time) != 0 || start_level >= 0) { \
+		stop_sounds(); \
+		start_level = custom->first_level; \
+		start_game(); \
+		return; \
+	} \
+} while(0)
+
 // seg000:17E6
 void show_title() {
 	load_opt_sounds(sound_50_story_2_princess, sound_55_story_1_absence); // main theme, story, princess door
@@ -1960,39 +1998,40 @@ void show_title() {
 	load_title_images(1);
 	current_target_surface = offscreen_surface;
 	idle(); // modified
-	do_paused();
+	CHECK_INTRO_SKIP();
 
 	draw_full_image(TITLE_MAIN);
 	fade_in_2(offscreen_surface, 0x1000); //STUB
+	CHECK_INTRO_SKIP();
 	method_1_blit_rect(onscreen_surface_, offscreen_surface, &screen_rect, &screen_rect, blitters_0_no_transp);
 	current_sound = sound_54_intro_music; // added
 	play_sound_from_buffer(sound_pointers[sound_54_intro_music]); // main theme
 	start_timer(timer_0, 0x82);
 	draw_full_image(TITLE_PRESENTS);
-	do_wait(timer_0);
+	DO_WAIT_SKIP(timer_0);
 
 	start_timer(timer_0, 0xCD);
 	method_1_blit_rect(onscreen_surface_, offscreen_surface, &rect_titles, &rect_titles, blitters_0_no_transp);
 	draw_full_image(TITLE_MAIN);
-	do_wait(timer_0);
+	DO_WAIT_SKIP(timer_0);
 
 	start_timer(timer_0, 0x41);
 	method_1_blit_rect(onscreen_surface_, offscreen_surface, &rect_titles, &rect_titles, blitters_0_no_transp);
 	draw_full_image(TITLE_MAIN);
 	draw_full_image(TITLE_GAME);
-	do_wait(timer_0);
+	DO_WAIT_SKIP(timer_0);
 
 	start_timer(timer_0, 0x10E);
 	method_1_blit_rect(onscreen_surface_, offscreen_surface, &rect_titles, &rect_titles, blitters_0_no_transp);
 	draw_full_image(TITLE_MAIN);
-	do_wait(timer_0);
+	DO_WAIT_SKIP(timer_0);
 
 	start_timer(timer_0, 0xEB);
 	method_1_blit_rect(onscreen_surface_, offscreen_surface, &rect_titles, &rect_titles, blitters_0_no_transp);
 	draw_full_image(TITLE_MAIN);
 	draw_full_image(TITLE_POP);
 	draw_full_image(TITLE_MECHNER);
-	do_wait(timer_0);
+	DO_WAIT_SKIP(timer_0);
 
 	method_1_blit_rect(onscreen_surface_, offscreen_surface, &rect_titles, &rect_titles, blitters_0_no_transp);
 	draw_full_image(STORY_FRAME);
@@ -2000,48 +2039,50 @@ void show_title() {
 	current_target_surface = onscreen_surface_;
 	while (check_sound_playing()) {
 		idle();
-		do_paused();
+		CHECK_INTRO_SKIP();
 		delay_ticks(1);
 	}
 //	method_1_blit_rect(onscreen_surface_, offscreen_surface, &screen_rect, &screen_rect, blitters_0_no_transp);
 	play_sound_from_buffer(sound_pointers[sound_55_story_1_absence]); // story 1: In the absence
 	transition_ltr();
-	pop_wait(timer_0, 0x258);
+	POP_WAIT_SKIP(timer_0, 0x258);
 	fade_out_2(0x800);
 	release_title_images();
 
 	load_intro(0, &pv_scene, 0);
+	if (start_level >= 0) return;
 
 	load_title_images(1);
 	current_target_surface = offscreen_surface;
 	draw_full_image(STORY_FRAME);
 	draw_full_image(STORY_MARRY);
 	fade_in_2(offscreen_surface, 0x800);
+	CHECK_INTRO_SKIP();
 	draw_full_image(TITLE_MAIN);
 	draw_full_image(TITLE_POP);
 	draw_full_image(TITLE_MECHNER);
 	while (check_sound_playing()) {
 		idle();
-		do_paused();
+		CHECK_INTRO_SKIP();
 		delay_ticks(1);
 	}
 	transition_ltr();
-	pop_wait(timer_0, 0x78);
+	POP_WAIT_SKIP(timer_0, 0x78);
 	draw_full_image(STORY_FRAME);
 	draw_full_image(STORY_CREDITS);
 	transition_ltr();
-	pop_wait(timer_0, 0x168);
+	POP_WAIT_SKIP(timer_0, 0x168);
 	if (hof_count) {
 		draw_full_image(STORY_FRAME);
 		draw_full_image(HOF_POP);
 		show_hof();
 		transition_ltr();
-		pop_wait(timer_0, 0xF0);
+		POP_WAIT_SKIP(timer_0, 0xF0);
 	}
 	current_target_surface = onscreen_surface_;
 	while (check_sound_playing()) {
 		idle();
-		do_paused();
+		CHECK_INTRO_SKIP();
 		delay_ticks(1);
 	}
 	fade_out_2(0x1800);
@@ -2079,7 +2120,7 @@ void transition_ltr() {
 			continue; // On slow systems (e.g. Raspberry Pi), allow the animation to catch up, before refreshing the screen.
 		}
 		idle(); // modified
-		do_paused();
+		if (do_paused() != 0 || start_level >= 0) return;
 		// Add an appropriate delay until the next frame, so that the animation isn't instantaneous on fast CPUs.
 		for (;;) {
 			Uint64 current_counter = SDL_GetPerformanceCounter();
