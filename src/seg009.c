@@ -444,6 +444,14 @@ int showmessage(char* text,int arg_4,void* arg_0);
 
 // seg009:0F58
 dat_type* open_dat(const char* filename, int optional) {
+	if (!use_custom_levelset && is_pak_available()) {
+		dat_type* pointer = (dat_type*) calloc(1, sizeof(dat_type));
+		snprintf_check(pointer->filename, sizeof(pointer->filename), "%s", filename);
+		pointer->next_dat = dat_chain_ptr;
+		dat_chain_ptr = pointer;
+		return pointer;
+	}
+
 	FILE* fp = NULL;
 	if (!use_custom_levelset) {
 		fp = open_dat_from_root_or_data_dir(filename);
@@ -894,7 +902,7 @@ image_type* decode_image(image_data_type* image_data, dat_pal_type* palette) {
 // seg009:121A
 image_type* load_image(int resource_id, dat_pal_type* palette) {
 	// First: try instant pak cache from currently open DAT files
-	if (!use_custom_levelset) {
+	if (!use_custom_levelset && is_pak_available()) {
 		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
 			char folder[16];
 			strncpy(folder, p->filename, sizeof(folder));
@@ -904,6 +912,8 @@ image_type* load_image(int resource_id, dat_pal_type* palette) {
 			image_type* img = load_image_from_pak(folder, resource_id);
 			if (img != NULL) return img;
 		}
+		// res.pak contains all valid game assets. If not found in res.pak, it does not exist on disk either!
+		return NULL;
 	}
 
 	// stub
@@ -3092,7 +3102,7 @@ void close_dat(dat_type* pointer) {
 // seg009:9F80
 void *load_from_opendats_alloc(int resource, const char* extension, data_location* out_result, int* out_size) {
 	// First: try instant pak cache for pal or bin from currently open DAT files
-	if (!use_custom_levelset && (strcmp(extension, "pal") == 0 || strcmp(extension, "bin") == 0)) {
+	if (!use_custom_levelset && is_pak_available()) {
 		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
 			char folder[16];
 			strncpy(folder, p->filename, sizeof(folder));
@@ -3107,6 +3117,9 @@ void *load_from_opendats_alloc(int resource, const char* extension, data_locatio
 				return area;
 			}
 		}
+		if (out_result != NULL) *out_result = data_none;
+		if (out_size != NULL) *out_size = 0;
+		return NULL;
 	}
 
 	// stub
@@ -3134,8 +3147,27 @@ void *load_from_opendats_alloc(int resource, const char* extension, data_locatio
 	return area;
 }
 
-// seg009:A172
 int load_from_opendats_to_area(int resource,void* area,int length, const char* extension) {
+	// First: try instant pak cache
+	if (!use_custom_levelset && is_pak_available()) {
+		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+			char folder[16];
+			strncpy(folder, p->filename, sizeof(folder));
+			folder[15] = '\0';
+			size_t len = strlen(folder);
+			if (len >= 5 && folder[len-4] == '.') folder[len-4] = '\0';
+			int pak_sz = 0;
+			void* pak_data = load_data_from_pak(folder, resource, extension, &pak_sz);
+			if (pak_data != NULL) {
+				int copy_len = MIN(pak_sz, length);
+				memcpy(area, pak_data, copy_len);
+				free(pak_data);
+				return copy_len;
+			}
+		}
+		return 0;
+	}
+
 	// stub
 	//return 0;
 	dat_type* pointer;

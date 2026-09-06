@@ -232,8 +232,10 @@ void draw_level_first() {
 #endif
 
 	// Busy waiting!
+#ifndef __PSP__
 	start_timer(timer_1, 5);
 	do_simple_wait(1);
+#endif
 }
 
 // seg003:037B

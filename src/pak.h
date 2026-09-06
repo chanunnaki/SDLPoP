@@ -4,6 +4,7 @@
 #include "common.h"
 
 void init_pak(void);
+bool is_pak_available(void);
 image_type* load_image_from_pak(const char* folder, int res_id);
 void* load_data_from_pak(const char* folder, int res_id, const char* ext, int* out_size);
 

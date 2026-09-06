@@ -1704,6 +1704,7 @@ byte optgraf_min[] = {0x01, 0x1E, 0x4B, 0x4E, 0x56, 0x65, 0x7F, 0x0A};
 byte optgraf_max[] = {0x09, 0x1F, 0x4D, 0x53, 0x5B, 0x7B, 0x8F, 0x0D};
 // seg000:13FC
 void load_more_opt_graf(const char* filename) {
+	if (graphics_mode == gmMcgaVga) return;
 	// stub
 	dat_shpl_type area;
 	dat_type* dathandle = NULL;

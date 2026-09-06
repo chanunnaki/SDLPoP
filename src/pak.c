@@ -71,6 +71,12 @@ void init_pak(void) {
 	pak_entries = (pak_entry_type*) (pak_buffer + sizeof(pak_header_type));
 }
 
+bool is_pak_available(void) {
+	if (!pak_initialized) init_pak();
+	return pak_buffer != NULL && pak_entries != NULL;
+}
+
+
 static int compare_pak_key(const void* a, const void* b) {
 	const pak_entry_type* entry_a = (const pak_entry_type*) a;
 	const pak_entry_type* entry_b = (const pak_entry_type*) b;
