@@ -43,12 +43,18 @@ deploy_hw() {
         return
     fi
 
-    echo "[*] Found ${unit} mounted on ${HOST}. Syncing to ${target_dir}..."
+    echo "[*] Found ${unit} mounted on ${HOST}. Deploying to ${target_dir}..."
     ssh "$HOST" "mkdir -p '${target_dir}'"
     
-    # Sync release bundle, excluding macOS metadata
-    rsync -avz --inplace --delete --exclude=".*" --exclude="*.DS_Store" \
-        "${DIST_DIR}/" "${HOST}:${target_dir}/"
+    # 1. Direct, instant deployment of binary and config (takes ~1s)
+    scp -q "${DIST_DIR}/EBOOT.PBP" "${DIST_DIR}/SDLPoP.ini" "${HOST}:${target_dir}/"
+
+    # 2. Only transfer heavy assets if missing on the target
+    if ! ssh "$HOST" "test -d '${target_dir}/data'" 2>/dev/null; then
+        echo "[*] Initializing asset directory on ${unit} (one-time copy)..."
+        rsync -a --inplace --exclude=".*" --exclude="*.DS_Store" \
+            "${DIST_DIR}/data/" "${HOST}:${target_dir}/data/"
+    fi
 
     echo "[✓] Successfully deployed to physical ${unit} -> ${FOLDER}"
 }
