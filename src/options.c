@@ -512,7 +512,9 @@ void set_options_to_default() {
 void load_global_options() {
 	set_options_to_default();
 	ini_load(locate_file("SDLPoP.ini"), global_ini_callback); // global configuration
+#ifndef __PSP__
 	load_dos_exe_modifications("."); // read PRINCE.EXE in the current working directory
+#endif
 }
 
 void check_mod_param() {

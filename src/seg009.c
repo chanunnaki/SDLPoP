@@ -2703,12 +2703,14 @@ void set_gr_mode(byte grmode) {
 #endif
 	}
 
+#ifndef __PSP__
 	SDL_Surface* icon = IMG_Load(locate_file("data/icon.png"));
 	if (icon == NULL) {
 		sdlperror("set_gr_mode: Could not load icon");
 	} else {
 		SDL_SetWindowIcon(window_, icon);
 	}
+#endif
 
 	apply_aspect_ratio();
 	window_resized();
@@ -4157,6 +4159,10 @@ rect_type* offset2_rect(rect_type* dest,const rect_type *source,int delta_x,int 
 #ifdef USE_FADE
 // seg009:19EF
 void fade_in_2(surface_type* source_surface,int which_rows) {
+#ifdef __PSP__
+	method_1_blit_rect(onscreen_surface_, source_surface, &screen_rect, &screen_rect, 0);
+	return;
+#else
 	palette_fade_type* palette_buffer;
 	if (graphics_mode == gmMcgaVga) {
 		palette_buffer = make_pal_buffer_fadein(source_surface, which_rows, 2);
@@ -4168,6 +4174,7 @@ void fade_in_2(surface_type* source_surface,int which_rows) {
 	} else {
 		// ...
 	}
+#endif
 }
 
 // seg009:1A51
@@ -4268,6 +4275,10 @@ int fade_in_frame(palette_fade_type* palette_buffer) {
 
 // seg009:1CC9
 void fade_out_2(int rows) {
+#ifdef __PSP__
+	draw_rect(&screen_rect, color_0_black);
+	return;
+#else
 	palette_fade_type* palette_buffer;
 	if (graphics_mode == gmMcgaVga) {
 		palette_buffer = make_pal_buffer_fadeout(rows, 2);
@@ -4279,6 +4290,7 @@ void fade_out_2(int rows) {
 	} else {
 		// ...
 	}
+#endif
 }
 
 // seg009:1D28

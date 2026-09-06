@@ -2464,8 +2464,10 @@ unsigned int crc32c(unsigned char *message, size_t size) {
 }
 
 dword exe_crc = 0;
-
 void calculate_exe_crc(void) {
+#ifdef __PSP__
+	exe_crc = 0x50535001;
+#else
 	if (exe_crc == 0) {
 		// Get the CRC32 fingerprint of the executable.
 		FILE* exe_file = fopen(g_argv[0], "rb");
@@ -2486,6 +2488,7 @@ void calculate_exe_crc(void) {
 			fclose(exe_file);
 		}
 	}
+#endif
 }
 
 void save_ingame_settings(void) {
@@ -2523,7 +2526,12 @@ void load_ingame_settings(void) {
 		dword expected_crc = 0;
 		SDL_RWread(rw, &expected_crc, sizeof(expected_crc), 1);
 //		printf("CRC-32: exe = %x, expected = %x\n", exe_crc, expected_crc);
-		if (exe_crc == expected_crc) {
+#ifdef __PSP__
+		if (1)
+#else
+		if (exe_crc == expected_crc)
+#endif
+		{
 			byte cfg_levelset_name_length;
 			char cfg_levelset_name[256] = {0};
 			SDL_RWread(rw, &cfg_levelset_name_length, sizeof(cfg_levelset_name_length), 1);
