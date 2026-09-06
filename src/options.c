@@ -215,6 +215,15 @@ static int global_ini_callback(const char *section, const char *name, const char
 			return 1;
 		}
 
+		if (strcasecmp(name, "graphics_pack") == 0) {
+			if (value[0] == '\0' || strcasecmp(value, "default") == 0) {
+				graphics_pack_name[0] = '\0';
+			} else {
+				snprintf_check(graphics_pack_name, sizeof(graphics_pack_name), "%s", value);
+			}
+			return 1;
+		}
+
 		process_boolean("always_use_original_music", &always_use_original_music);
 		process_boolean("always_use_original_graphics", &always_use_original_graphics);
 

@@ -11,14 +11,17 @@ from PIL import Image
 entry_struct = struct.Struct('<16s4sHHHBBII')
 header_struct = struct.Struct('<8sII')
 
-def build_pak(base_dir):
-    data_dir = os.path.join(base_dir, 'data')
+def build_pak(data_dir, out_path=None):
+    if out_path is None:
+        out_path = os.path.join(data_dir, 'res.pak')
     files = glob.glob(os.path.join(data_dir, '**', 'res*.*'), recursive=True)
     
     entries_data = []
     payloads = bytearray()
     
     for f in files:
+        if os.path.abspath(f) == os.path.abspath(out_path):
+            continue
         rel = os.path.relpath(f, data_dir)
         parts = rel.split(os.sep)
         if len(parts) != 2:
@@ -96,7 +99,6 @@ def build_pak(base_dir):
         
     header = header_struct.pack(b'POPSPAK1', 1, num_entries)
     
-    out_path = os.path.join(data_dir, 'res.pak')
     with open(out_path, 'wb') as fp:
         fp.write(header)
         for fe in final_entries:
@@ -106,5 +108,8 @@ def build_pak(base_dir):
     print(f"[✓] Successfully generated {out_path} ({num_entries} entries, {os.path.getsize(out_path)/1024/1024:.2f} MB)")
 
 if __name__ == '__main__':
+    import sys
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    build_pak(base_dir)
+    target_data_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(base_dir, 'data')
+    target_out_pak = sys.argv[2] if len(sys.argv) > 2 else os.path.join(target_data_dir, 'res.pak')
+    build_pak(target_data_dir, target_out_pak)

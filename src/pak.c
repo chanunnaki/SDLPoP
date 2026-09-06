@@ -30,9 +30,33 @@ void init_pak(void) {
 	if (pak_initialized) return;
 	pak_initialized = true;
 
-	const char* pak_path = locate_file("data/res.pak");
+	char custom_pak[POP_MAX_PATH];
+	const char* target_file = "data/res.pak";
+
+	if (graphics_pack_name[0] != '\0' && strcasecmp(graphics_pack_name, "default") != 0) {
+		if (strcasecmp(graphics_pack_name, "dos") == 0) {
+			snprintf_check(custom_pak, sizeof(custom_pak), "data/res_dos.pak");
+		} else if (strcasecmp(graphics_pack_name, "snes") == 0) {
+			snprintf_check(custom_pak, sizeof(custom_pak), "data/res_snes.pak");
+		} else if (strcasecmp(graphics_pack_name, "x68") == 0 || strcasecmp(graphics_pack_name, "x68000") == 0) {
+			snprintf_check(custom_pak, sizeof(custom_pak), "data/res_x68.pak");
+		} else if (strstr(graphics_pack_name, ".pak") != NULL) {
+			snprintf_check(custom_pak, sizeof(custom_pak), "data/%s", graphics_pack_name);
+		} else {
+			snprintf_check(custom_pak, sizeof(custom_pak), "data/res_%s.pak", graphics_pack_name);
+		}
+		const char* test_path = locate_file(custom_pak);
+		if (file_exists(test_path)) {
+			target_file = custom_pak;
+		}
+	}
+
+	const char* pak_path = locate_file(target_file);
 	if (!file_exists(pak_path)) {
-		return;
+		pak_path = locate_file("data/res.pak");
+		if (!file_exists(pak_path)) {
+			return;
+		}
 	}
 
 	FILE* fp = fopen(pak_path, "rb");

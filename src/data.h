@@ -724,6 +724,7 @@ extern word pop_window_height INIT(= 400);
 #endif
 extern byte use_custom_levelset INIT(= 0);
 extern char levelset_name[POP_MAX_PATH];
+extern char graphics_pack_name[POP_MAX_PATH];
 extern char mod_data_path[POP_MAX_PATH];
 extern bool skip_mod_data_files;
 extern bool skip_normal_data_files;
