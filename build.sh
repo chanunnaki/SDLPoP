@@ -14,10 +14,13 @@ make -j"$(sysctl -n hw.ncpu)"
 
 echo "=== Packaging Release Bundle ==="
 mkdir -p "${DIST_DIR}"
-cp "${SCRIPT_DIR}/EBOOT.PBP" "${DIST_DIR}/EBOOT.PBP"
-cp "${SCRIPT_DIR}/SDLPoP.ini" "${DIST_DIR}/SDLPoP.ini"
-rm -rf "${DIST_DIR}/data"
-cp -R "${SCRIPT_DIR}/data" "${DIST_DIR}/data"
+cp -p "${SCRIPT_DIR}/EBOOT.PBP" "${DIST_DIR}/EBOOT.PBP"
+cp -p "${SCRIPT_DIR}/SDLPoP.ini" "${DIST_DIR}/SDLPoP.ini"
+if [ ! -d "${DIST_DIR}/data" ]; then
+    cp -a "${SCRIPT_DIR}/data" "${DIST_DIR}/data"
+else
+    rsync -a --delete "${SCRIPT_DIR}/data/" "${DIST_DIR}/data/"
+fi
 
 echo "=== Build Complete! ==="
 ls -lh "${DIST_DIR}/EBOOT.PBP"
