@@ -1,41 +1,52 @@
-# How to compile and run
-Install latest PSPDEV toolchain, then go to src and run these commands:
+# SDLPoP for PlayStation Portable (PSP)
 
+Native port of **SDLPoP** (Prince of Persia 1) for the Sony PlayStation Portable and PPSSPP emulator, built using the modern `pspdev` toolchain.
+
+## Features
+
+- **Decoupled 1:1 Integer Overlay**: Pause menus, settings menus, and dialogs render at strict 1:1 integer scale ($320 \times 200$) over a GPU-blended semi-transparent dimmed backdrop. Eliminates all font distortion, blurring, and text shimmering.
+- **$2\times$ Integer Status Bar / HUD Split**:
+  - Playfield ($192\text{ px}$): Scaled to $256\text{ px}$ ($192 \times 4/3$).
+  - Status bar / HUD ($8\text{ px}$): Scaled to $16\text{ px}$ ($8 \times 2$) — an exact $2\times$ integer vertical scale for razor-sharp HP triangles and text messages.
+- **Display Modes**:
+  - `16:10`: Authentic DOS aspect ratio ($436 \times 272$, 22px symmetrical black pillars).
+  - `16:9 Wide`: Full widescreen stretch ($480 \times 272$).
+  - `4:3`: Authentic DOS CRT aspect ratio ($362 \times 272$, 59px symmetrical black pillars).
+- **On-Demand OGG Streaming**: High-quality authentic DOS music streams on-demand via `stb_vorbis` without startup preloading or memory bloat (~150KB peak RAM vs 20MB).
+- **Expanded Memory**: Full 64MB user memory partition unlocked (`MEMSIZE 1` in PRX) with a 51MB+ newlib heap (`PSP_HEAP_SIZE_KB(-2048)`).
+- **Audio Clamping & Saturated Mixing**: Eliminates sample overflow clipping and comb-filter phasing on hardware.
+- **Ergonomic Handheld Controls**:
+  - **D-Pad / Analog Stick**: Movement, Crouch (Down), Jump (Up)
+  - **Cross ($\times$) / Square ($\square$)**: Action / Shift (Grab ledge, strike sword, careful walk)
+  - **Triangle ($\triangle$) / Circle ($\bigcirc$)**: Jump / Climb
+  - **L / R Shoulders**: Action / Shift (easy hold while running)
+  - **Start**: Pause Game / In-Game Menu
+  - **Select**: Display Time Remaining
+
+## Building
+
+Requires the `pspdev` toolchain (with SDL2, SDL2_image, and CMake).
+
+```bash
+./build.sh
 ```
-mkdir build
-cd build
-psp-cmake ..
-make
+
+This compiles `prince.prx`, packages `EBOOT.PBP`, and bundles all required data and INI files into `dist/SDLPoP/`.
+
+## Deployment
+
+```bash
+./deploy.sh
 ```
 
-Then move the `EBOOT.PBP` file into a dir with the data/ files (WITH MUSIC!),
-then finally load it into your PSP.
-
-## How to debug
-Clean your dirs and run `psp-cmake .. -DBUILD_PRX=1` instead, then use
-the debugging guide at PSPDEV's site.
-
-The process is like this:
-
-- Start `usbhostfs_pc` in a terminal at the prince.prx dir
-- Start PSPLINK in your PSP, connected with a usb cable.
-- Run `pspsh` in another terminal at the same prev. dir
-- Run the command `debug ./prince.prx` inside pspsh
-- In yet another terminal, run `psp-gdb ./prince -q`, then `target remote :10001`
-- Start debugging as usual.
-
-You can skip the psp-gdb step, since PSPLINK lets you run the prx as is and 
-catch the exceptions and set breakpoints too.
-
-## Changes
-- INI loading was disabled due to a bug that crashed the psp. Sane defaults were
-  provided instead (FIXED).
-- PSP has to run at full speed (333mhz) in order for the game to work.
-- "iconPSP.png" was provided.
-- Music was replaced for ogg ones (use the smaller ones!), 
-  so make sure to grab them into data/music (see README.md)
+Automatically deploys to:
+1. Local PPSSPP emulator (`~/.config/ppsspp/PSP/GAME/CAT_Homebrew/SDLPoP/` and `~/.config/ppsspp/PSP/GAME/SDLPoP/`)
+2. Physical PSP units connected via USB (`/Volumes/NO NAME/...` or network automounts).
 
 ## Credits
-- SDLPoP and others (Github)
-- PSPDEV and others (toolchain)
-- striga, sharkwouter (fixing compilation for PSP)
+
+- **Dávid Nagy** and contributors: [SDLPoP](https://github.com/NagyD/SDLPoP)
+- **Jordan Mechner**: Creator of the original Prince of Persia
+- **PSPDEV**: [pspdev](https://github.com/pspdev/pspdev) toolchain and SDK libraries
+- **striga, sharkwouter**: Initial PSP scaffolding
+- **chanunnaki**: Enhanced PSP port (decoupled 1:1 overlay, 2x integer HUD split, streaming audio, modern CMake build)

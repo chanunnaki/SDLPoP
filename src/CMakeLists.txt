@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
 project(SDLPoP)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
@@ -119,7 +119,8 @@ if(WIN32)
     target_link_libraries(prince mingw32 SDL2main SDL2 SDL2_image)
 elseif(APPLE)
     target_link_libraries(prince SDL2main SDL2 SDL2_image m)
-elseif(PSP) # Linux, *BSD, etc.
+elseif(PSP)
+	set(BUILD_PRX ON CACHE BOOL "Build PRX" FORCE)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
 	include(FindPkgConfig)
 	pkg_search_module(SDL2 REQUIRED sdl2)
@@ -130,10 +131,12 @@ elseif(PSP) # Linux, *BSD, etc.
 	)
 	create_pbp_file(
 		TARGET prince
+		BUILD_PRX
+		MEMSIZE 1
 		ICON_PATH ${CMAKE_SOURCE_DIR}/iconPSP.png
 		BACKGROUND_PATH NULL
 		PREVIEW_PATH NULL
-		TITLE prince
+		TITLE "Prince of Persia"
 	)
 else()
     	target_link_libraries(prince SDL2 SDL2_image m)

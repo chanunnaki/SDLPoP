@@ -44,7 +44,7 @@ void sdlperror(const char* header) {
 
 char exe_dir[POP_MAX_PATH] = ".";
 bool found_exe_dir = false;
-#if ! (defined WIN32 || _WIN32 || WIN64 || _WIN64)
+#if ! (defined WIN32 || _WIN32 || WIN64 || _WIN64 || defined __PSP__)
 char home_dir[POP_MAX_PATH];
 bool found_home_dir = false;
 char share_dir[POP_MAX_PATH];
@@ -62,28 +62,35 @@ void find_exe_dir(void) {
 		NameFromLock( GetProgramDir(), exe_dir, sizeof(exe_dir) );
 	}
 #else
-	snprintf_check(exe_dir, sizeof(exe_dir), "%s", g_argv[0]);
-	char* last_slash = NULL;
-	char* pos = exe_dir;
-	for (char c = *pos; c != '\0'; ++pos, c = *pos) {
-		if (c == '/' || c == '\\') {
-			last_slash = pos;
+	if (g_argc > 0 && g_argv != NULL && g_argv[0] != NULL) {
+		snprintf_check(exe_dir, sizeof(exe_dir), "%s", g_argv[0]);
+		char* last_slash = NULL;
+		char* pos = exe_dir;
+		for (char c = *pos; c != '\0'; ++pos, c = *pos) {
+			if (c == '/' || c == '\\') {
+				last_slash = pos;
+			}
 		}
-	}
-	if (last_slash != NULL) {
-		*last_slash = '\0';
+		if (last_slash != NULL) {
+			*last_slash = '\0';
+#ifdef __PSP__
+			chdir(exe_dir);
+#endif
+		}
 	}
 #endif
 	found_exe_dir = true;
 }
 
-#if ! (defined WIN32 || _WIN32 || WIN64 || _WIN64)
+#if ! (defined WIN32 || _WIN32 || WIN64 || _WIN64 || defined __PSP__)
 void find_home_dir(void) {
 	if (found_home_dir) return;
 	const char* home_path = getenv("HOME");
-	snprintf_check(home_dir, POP_MAX_PATH - 1, "%s/.%s", home_path, POP_DIR_NAME);
-	if(file_exists(home_dir))
-		found_home_dir = true;
+	if (home_path != NULL) {
+		snprintf_check(home_dir, POP_MAX_PATH - 1, "%s/.%s", home_path, POP_DIR_NAME);
+		if(file_exists(home_dir))
+			found_home_dir = true;
+	}
 }
 
 void find_share_dir(void) {
@@ -100,7 +107,7 @@ bool file_exists(const char* filename) {
 
 const char* find_first_file_match(char* dst, int size, char* format, const char* filename) {
 	find_exe_dir();
-#if defined WIN32 || _WIN32 || WIN64 || _WIN64
+#if defined WIN32 || _WIN32 || WIN64 || _WIN64 || defined __PSP__
 	snprintf_check(dst, size, format, exe_dir, filename);
 #else
 	find_home_dir();
@@ -117,7 +124,7 @@ const char* find_first_file_match(char* dst, int size, char* format, const char*
 
 const char* locate_save_file_(const char* filename, char* dst, int size) {
 	find_exe_dir();
-#if defined WIN32 || _WIN32 || WIN64 || _WIN64
+#if defined WIN32 || _WIN32 || WIN64 || _WIN64 || defined __PSP__
 	snprintf_check(dst, size, "%s/%s", exe_dir, filename);
 #else
 	find_home_dir();
@@ -1914,10 +1921,13 @@ stb_vorbis* ogg_decoder;
 
 void stop_ogg(void) {
 	SDL_PauseAudio(1);
-	if (!ogg_playing) return;
+	if (!ogg_playing && ogg_decoder == NULL) return;
 	ogg_playing = 0;
 	SDL_LockAudio();
-	ogg_decoder = NULL;
+	if (ogg_decoder != NULL) {
+		stb_vorbis_close(ogg_decoder);
+		ogg_decoder = NULL;
+	}
 	SDL_UnlockAudio();
 }
 
@@ -2048,32 +2058,53 @@ void ogg_callback(void *userdata, Uint8 *stream, int len) {
 	int bytes_per_sample = sizeof(short) * output_channels;
 	int samples_requested = len / bytes_per_sample;
 
-	int samples_filled;
+	int samples_filled = 0;
 	if (is_sound_on) {
-		samples_filled = stb_vorbis_get_samples_short_interleaved(ogg_decoder, output_channels,
-                                                                      (short*) stream, len / sizeof(short));
-		if (samples_filled < samples_requested) {
-			// In case the sound does not fill the buffer: fill the rest of the buffer with silence.
-			int bytes_filled = samples_filled * bytes_per_sample;
-			int remaining_bytes = (samples_requested - samples_filled) * bytes_per_sample;
-			memset(stream + bytes_filled, digi_audiospec->silence, remaining_bytes);
+		short ogg_chunk[512 * 2];
+		int samples_left = samples_requested;
+		short* stream_ptr = (short*)stream;
+
+		while (samples_left > 0) {
+			int chunk_to_read = MIN(samples_left, 512);
+			int read_count = stb_vorbis_get_samples_short_interleaved(ogg_decoder, output_channels,
+			                                                         ogg_chunk, chunk_to_read * output_channels);
+			if (read_count <= 0) break;
+			samples_filled += read_count;
+			for (int i = 0; i < read_count * output_channels; ++i) {
+				int mixed = stream_ptr[i] + ((ogg_chunk[i] * 3) / 4);
+				if (mixed > 32767) mixed = 32767;
+				else if (mixed < -32768) mixed = -32768;
+				stream_ptr[i] = (short)mixed;
+			}
+			stream_ptr += read_count * output_channels;
+			samples_left -= read_count;
+			if (read_count < chunk_to_read) break;
 		}
 	} else {
-		// If sound is off: Mute the sound, but keep track of where we are.
-		memset(stream, digi_audiospec->silence, len);
-		// Let the decoder run normally (to advance the position), but discard the result.
-		byte* discarded_samples = alloca(len);
-		samples_filled = stb_vorbis_get_samples_short_interleaved(ogg_decoder, output_channels,
-																  (short*) discarded_samples, len / sizeof(short));
+		// If sound is off: advance position
+		short ogg_chunk[512 * 2];
+		int samples_left = samples_requested;
+		while (samples_left > 0) {
+			int chunk_to_read = MIN(samples_left, 512);
+			int read_count = stb_vorbis_get_samples_short_interleaved(ogg_decoder, output_channels,
+			                                                         ogg_chunk, chunk_to_read * output_channels);
+			if (read_count <= 0) break;
+			samples_filled += read_count;
+			samples_left -= read_count;
+			if (read_count < chunk_to_read) break;
+		}
 	}
 	// Push an event if the sound has ended.
 	if (samples_filled == 0) {
-		//printf("ogg_callback(): sound ended\n");
 		SDL_Event event;
 		memset(&event, 0, sizeof(event));
 		event.type = SDL_USEREVENT;
 		event.user.code = userevent_SOUND;
 		ogg_playing = 0;
+		if (ogg_decoder != NULL) {
+			stb_vorbis_close(ogg_decoder);
+			ogg_decoder = NULL;
+		}
 		SDL_PushEvent(&event);
 	}
 }
@@ -2178,7 +2209,11 @@ void init_digi() {
 	desired->freq = digi_samplerate; //buffer->digi.sample_rate;
 	desired->format = desired_audioformat;
 	desired->channels = 2;
+#ifdef __PSP__
+	desired->samples = 2048;
+#else
 	desired->samples = 1024;
+#endif
 	desired->callback = audio_callback;
 	desired->userdata = NULL;
 	if (SDL_OpenAudio(desired, NULL) != 0) {
@@ -2237,48 +2272,32 @@ sound_buffer_type* load_sound(int index) {
 		if (sound_names != NULL && sound_name(index) != NULL) {
 			//printf("Loading from music folder\n");
 			do {
-				FILE* fp = NULL;
 				char filename[POP_MAX_PATH];
+				const char* target_file = NULL;
 				if (!skip_mod_data_files) {
 					// before checking the root directory, first try mods/MODNAME/
 					snprintf_check(filename, sizeof(filename), "%s/music/%s.ogg", mod_data_path, sound_name(index));
-					fp = fopen(filename, "rb");
+					if (file_exists(filename)) {
+						target_file = filename;
+					}
 				}
-				if (fp == NULL && !skip_normal_data_files) {
+				if (target_file == NULL && !skip_normal_data_files) {
 					snprintf_check(filename, sizeof(filename), "data/music/%s.ogg", sound_name(index));
-					fp = fopen(locate_file(filename), "rb");
+					const char* loc = locate_file(filename);
+					if (file_exists(loc)) {
+						target_file = loc;
+					}
 				}
-				if (fp == NULL) {
+				if (target_file == NULL) {
 					break;
 				}
-				// Read the entire file (undecoded) into memory.
-				struct stat info;
-				if (fstat(fileno(fp), &info))
-					break;
-				size_t file_size = (size_t) MAX(0, info.st_size);
-				byte* file_contents = malloc(file_size);
-				if (fread(file_contents, 1, file_size, fp) != file_size) {
-					free(file_contents);
-					fclose(fp);
-					break;
-				}
-				fclose(fp);
 
-				// Decoding the entire file immediately would make the loading time much longer.
-				// However, we can also create the decoder now, and only use it when we are actually playing the file.
-				// (In the audio callback, we'll decode chunks of samples to the output stream, as needed).
-				int error = 0;
-				stb_vorbis* decoder = stb_vorbis_open_memory(file_contents, (int)file_size, &error, NULL);
-				if (decoder == NULL) {
-					printf("Error %d when creating decoder from file \"%s\"!\n", error, filename);
-					free(file_contents);
-					break;
-				}
 				result = malloc(sizeof(sound_buffer_type));
+				if (result == NULL) break;
 				result->type = sound_ogg;
-				result->ogg.total_length = stb_vorbis_stream_length_in_samples(decoder) * sizeof(short);
-				result->ogg.file_contents = file_contents; // Remember in case we want to free the sound later.
-				result->ogg.decoder = decoder;
+				result->ogg.total_length = 0;
+				result->ogg.file_contents = (byte*) strdup(target_file);
+				result->ogg.decoder = NULL;
 			} while(0); // do once (breakable block)
 		} else {
 			//printf("sound_names = %p\n", sound_names);
@@ -2305,15 +2324,28 @@ void play_ogg_sound(sound_buffer_type *buffer) {
 	if (digi_unavailable) return;
 	stop_sounds();
 
-	// Need to rewind the music, or else the decoder might continue where it left off, the last time this sound played.
-	stb_vorbis_seek_start(buffer->ogg.decoder);
+	if (buffer->ogg.file_contents != NULL) {
+		int error = 0;
+		stb_vorbis* decoder = stb_vorbis_open_filename((const char*)buffer->ogg.file_contents, &error, NULL);
+		if (decoder == NULL) {
+			printf("Error %d when opening OGG file \"%s\"!\n", error, (char*)buffer->ogg.file_contents);
+			return;
+		}
+		SDL_LockAudio();
+		ogg_decoder = decoder;
+		ogg_playing = 1;
+		SDL_UnlockAudio();
+	} else if (buffer->ogg.decoder != NULL) {
+		stb_vorbis_seek_start(buffer->ogg.decoder);
+		SDL_LockAudio();
+		ogg_decoder = buffer->ogg.decoder;
+		ogg_playing = 1;
+		SDL_UnlockAudio();
+	} else {
+		return;
+	}
 
-	SDL_LockAudio();
-	ogg_decoder = buffer->ogg.decoder;
-	SDL_UnlockAudio();
 	SDL_PauseAudio(0);
-
-	ogg_playing = 1;
 }
 
 int wave_version = -1;
@@ -2422,8 +2454,12 @@ void play_digi_sound(sound_buffer_type* buffer) {
 void free_sound(sound_buffer_type* buffer) {
 	if (buffer == NULL) return;
 	if (buffer->type == sound_ogg) {
-		stb_vorbis_close(buffer->ogg.decoder);
-		free(buffer->ogg.file_contents);
+		if (buffer->ogg.decoder != NULL) {
+			stb_vorbis_close(buffer->ogg.decoder);
+		}
+		if (buffer->ogg.file_contents != NULL) {
+			free(buffer->ogg.file_contents);
+		}
 	}
 	free(buffer);
 }
@@ -2480,6 +2516,7 @@ int check_sound_playing() {
 }
 
 void apply_aspect_ratio() {
+#ifndef __PSP__
 	// Allow us to use a consistent set of screen co-ordinates, even if the screen size changes
 	if (use_correct_aspect_ratio) {
 		SDL_RenderSetLogicalSize(renderer_, 320 * 5, 200 * 6); // 4:3
@@ -2487,6 +2524,7 @@ void apply_aspect_ratio() {
 		SDL_RenderSetLogicalSize(renderer_, 320, 200); // 16:10
 	}
 	window_resized();
+#endif
 }
 
 void window_resized() {
@@ -2524,6 +2562,20 @@ void init_scaling(void) {
 	if (texture_sharp == NULL) {
 		texture_sharp = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, 320, 200);
 	}
+#ifdef __PSP__
+	if (overlay_texture == NULL && overlay_surface != NULL) {
+		overlay_texture = SDL_CreateTexture(renderer_, overlay_surface->format->format, SDL_TEXTUREACCESS_STREAMING, 320, 200);
+		if (overlay_texture == NULL) {
+			overlay_texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, 320, 200);
+		}
+		if (overlay_texture == NULL) {
+			overlay_texture = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 320, 200);
+		}
+		if (overlay_texture != NULL) {
+			SDL_SetTextureBlendMode(overlay_texture, SDL_BLENDMODE_BLEND);
+		}
+	}
+#endif
 	if (scaling_type == 1) {
 		if (!is_renderer_targettexture_supported && onscreen_surface_2x == NULL) {
 #ifdef __amigaos4__
@@ -2667,6 +2719,11 @@ void set_gr_mode(byte grmode) {
 }
 
 SDL_Surface* get_final_surface() {
+#ifdef __PSP__
+	if (decouple_menu_overlay && is_paused && is_menu_shown) {
+		return onscreen_surface_;
+	}
+#endif
 	if (!is_overlay_displayed) {
 		return onscreen_surface_;
 	} else {
@@ -2692,6 +2749,11 @@ void draw_overlay(void) {
 #endif
 	if (overlay != 0) {
 		is_overlay_displayed = true;
+#ifdef __PSP__
+		if (overlay == 2 && decouple_menu_overlay) {
+			return;
+		}
+#endif
 		surface_type* saved_target_surface = current_target_surface;
 		current_target_surface = overlay_surface;
 		rect_type drawn_rect;
@@ -2786,8 +2848,67 @@ void update_screen() {
 	} else {
 		SDL_UpdateTexture(target_texture, NULL, surface->pixels, surface->pitch);
 	}
+	SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
 	SDL_RenderClear(renderer_);
+#ifdef __PSP__
+	int dst_x, dst_w;
+	byte mode = psp_display_mode;
+	if (mode == 0 && use_correct_aspect_ratio) {
+		mode = 2; // Treat use_correct_aspect_ratio toggle as 4:3 mode
+	}
+	if (mode == 1) {
+		// 16:9 Full widescreen stretch
+		dst_w = 480;
+		dst_x = 0;
+	} else if (mode == 2) {
+		// 4:3 Aspect ratio (authentic DOS CRT pillarbox): 362x272 centered
+		dst_w = 362;
+		dst_x = (480 - 362) / 2; // 59 px left, 59 px right
+	} else {
+		// 16:10 Aspect ratio (original 320x200 pillarbox): 436x272 centered
+		dst_w = 436;
+		dst_x = (480 - 436) / 2; // 22 px left, 22 px right
+	}
+
+	bool in_gameplay = (current_level > 0 && current_level < 15 && !is_cutscene && !is_ending_sequence);
+	if (enable_hud_split && in_gameplay) {
+		// Playfield: rows 0..191 (height 192) scaled to 256px (192 * 4 / 3)
+		SDL_Rect src_playfield = { 0, 0, 320, 192 };
+		SDL_Rect dst_playfield = { dst_x, 0, dst_w, 256 };
+		SDL_RenderCopy(renderer_, target_texture, &src_playfield, &dst_playfield);
+
+		// Status bar / HUD: rows 192..199 (height 8) scaled to 16px (8 * 2 exact 2x integer vertical scale)
+		SDL_Rect src_hud = { 0, 192, 320, 8 };
+		SDL_Rect dst_hud = { dst_x, 256, dst_w, 16 };
+		SDL_RenderCopy(renderer_, target_texture, &src_hud, &dst_hud);
+	} else {
+		// Full frame (cutscenes, intro, title screen, etc.): 320x200 -> height 272
+		SDL_Rect dst_rect = { dst_x, 0, dst_w, 272 };
+		SDL_RenderCopy(renderer_, target_texture, NULL, &dst_rect);
+	}
+
+	if (decouple_menu_overlay && is_paused && is_menu_shown) {
+		// Dim the entire PSP screen
+		SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
+		int dim_alpha = 140;
+		if (current_dialog_box != 0) {
+			dim_alpha = 180;
+		} else if (drawn_menu == 1) {
+			dim_alpha = 205;
+		}
+		SDL_SetRenderDrawColor(renderer_, 0, 0, 0, dim_alpha);
+		SDL_RenderFillRect(renderer_, NULL);
+
+		// Render decoupled overlay at strict 1:1 integer scale centered on screen
+		if (overlay_texture != NULL && overlay_surface != NULL) {
+			SDL_UpdateTexture(overlay_texture, NULL, overlay_surface->pixels, overlay_surface->pitch);
+			SDL_Rect menu_dst = { (480 - 320) / 2, (272 - 200) / 2, 320, 200 }; // { 80, 36, 320, 200 }
+			SDL_RenderCopy(renderer_, overlay_texture, NULL, &menu_dst);
+		}
+	}
+#else
 	SDL_RenderCopy(renderer_, target_texture, NULL, NULL);
+#endif
 	SDL_RenderPresent(renderer_);
 }
 
@@ -3607,16 +3728,31 @@ void process_events() {
 					case SDL_CONTROLLER_BUTTON_B:          joy_button_states[JOYINPUT_B] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW; break; /*** B (unused) ***/
 
 					case SDL_CONTROLLER_BUTTON_START:
-					case SDL_CONTROLLER_BUTTON_BACK:
-						if(event.cbutton.button == SDL_CONTROLLER_BUTTON_START)
-							joy_button_states[JOYINPUT_START] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW;
-						else if(event.cbutton.button == SDL_CONTROLLER_BUTTON_BACK)
-							joy_button_states[JOYINPUT_BACK] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW;
+						joy_button_states[JOYINPUT_START] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW;
 #ifdef USE_MENU
 						last_key_scancode = SDL_SCANCODE_BACKSPACE;  /*** bring up pause menu ***/
 #else
 						last_key_scancode = SDL_SCANCODE_ESCAPE;  /*** back (pause game) ***/
 #endif
+						break;
+					case SDL_CONTROLLER_BUTTON_BACK:
+						joy_button_states[JOYINPUT_BACK] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW;
+#ifdef __PSP__
+						last_key_scancode = SDL_SCANCODE_SPACE; /*** show time remaining on PSP ***/
+#else
+#ifdef USE_MENU
+						last_key_scancode = SDL_SCANCODE_BACKSPACE;  /*** bring up pause menu ***/
+#else
+						last_key_scancode = SDL_SCANCODE_ESCAPE;  /*** back (pause game) ***/
+#endif
+#endif
+						break;
+
+					case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+						joy_button_states[JOYINPUT_LEFTSHOULDER] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW;
+						break;
+					case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+						joy_button_states[JOYINPUT_RIGHTSHOULDER] |= KEYSTATE_HELD | KEYSTATE_HELD_NEW;
 						break;
 
 					default: break;
@@ -3637,6 +3773,8 @@ void process_events() {
 
 					case SDL_CONTROLLER_BUTTON_START:      joy_button_states[JOYINPUT_START] &= ~KEYSTATE_HELD; break;
 					case SDL_CONTROLLER_BUTTON_BACK:       joy_button_states[JOYINPUT_BACK] &= ~KEYSTATE_HELD; break;
+					case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:  joy_button_states[JOYINPUT_LEFTSHOULDER] &= ~KEYSTATE_HELD; break;
+					case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: joy_button_states[JOYINPUT_RIGHTSHOULDER] &= ~KEYSTATE_HELD; break;
 
 					default: break;
 				}

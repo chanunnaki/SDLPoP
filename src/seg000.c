@@ -1380,13 +1380,26 @@ void read_joyst_control() {
 	if (joy_left_stick_states[0] == 1 || joy_right_stick_states[0] == 1 || joy_button_states[JOYINPUT_DPAD_RIGHT] & key_state)
 		control_x = CONTROL_HELD_RIGHT;
 
-	if (joy_left_stick_states[1] == -1 || joy_right_stick_states[1] == -1 || joy_button_states[JOYINPUT_DPAD_UP] & key_state || joy_button_states[JOYINPUT_Y] & key_state)
+	if (joy_left_stick_states[1] == -1 || joy_right_stick_states[1] == -1 || joy_button_states[JOYINPUT_DPAD_UP] & key_state || joy_button_states[JOYINPUT_Y] & key_state
+#ifdef __PSP__
+		|| joy_button_states[JOYINPUT_B] & key_state
+#endif
+	)
 		control_y = CONTROL_HELD_UP;
 
-	if (joy_left_stick_states[1] == 1 || joy_right_stick_states[1] == 1 || joy_button_states[JOYINPUT_DPAD_DOWN] & key_state || joy_button_states[JOYINPUT_A] & key_state)
+	if (joy_left_stick_states[1] == 1 || joy_right_stick_states[1] == 1 || joy_button_states[JOYINPUT_DPAD_DOWN] & key_state
+#ifndef __PSP__
+		|| joy_button_states[JOYINPUT_A] & key_state
+#endif
+	)
 		control_y = CONTROL_HELD_DOWN;
 
 	if (joy_button_states[JOYINPUT_X] & key_state ||
+#ifdef __PSP__
+			joy_button_states[JOYINPUT_A] & key_state ||
+			joy_button_states[JOYINPUT_LEFTSHOULDER] & key_state ||
+			joy_button_states[JOYINPUT_RIGHTSHOULDER] & key_state ||
+#endif
 			joy_axis_ptr[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > 8000 ||
 			joy_axis_ptr[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > 8000)
 	{

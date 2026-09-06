@@ -630,6 +630,7 @@ extern SDL_Texture* texture_sharp;
 extern SDL_Texture* texture_fuzzy;
 extern SDL_Texture* texture_blurry;
 extern SDL_Texture* target_texture;
+extern SDL_Texture* overlay_texture;
 
 extern SDL_GameController* sdl_controller_ INIT( = 0 );
 extern SDL_Joystick* sdl_joystick_; // in case our joystick is not compatible with SDL_GameController
@@ -742,8 +743,14 @@ extern byte enable_quicksave_penalty INIT(= 1);
 extern byte enable_replay INIT(= 1);
 #ifdef __PSP__
 extern byte use_hardware_acceleration INIT(= 1);
+extern byte psp_display_mode INIT(= 0);
+extern byte enable_hud_split INIT(= 1);
+extern byte decouple_menu_overlay INIT(= 1);
 #else
 extern byte use_hardware_acceleration INIT(= 2);
+extern byte psp_display_mode INIT(= 0);
+extern byte enable_hud_split INIT(= 0);
+extern byte decouple_menu_overlay INIT(= 0);
 #endif
 extern byte use_correct_aspect_ratio INIT(= 0);
 extern byte use_integer_scaling INIT(= 0);
@@ -931,6 +938,10 @@ extern bool escape_key_suppressed;
 extern int menu_control_scroll_y;
 extern sbyte is_menu_shown;
 extern byte enable_pause_menu INIT(= 1);
+#ifndef BODY
+extern int drawn_menu;
+extern int current_dialog_box;
+#endif
 #endif
 extern char mods_folder[POP_MAX_PATH] INIT(= "mods");
 

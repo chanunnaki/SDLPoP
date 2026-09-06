@@ -520,18 +520,25 @@ void midi_callback(void *userdata, Uint8 *stream, int len) {
 			int64_t advance_us = MIN(us_to_next_pause, us_needed);
 			int available_frames = (int)(((advance_us * mixing_freq) + ONE_SECOND_IN_US - 1) / ONE_SECOND_IN_US); // round up.
 			int advance_frames = MIN(available_frames, frames_needed);
-			advance_us = advance_frames * ONE_SECOND_IN_US / mixing_freq; // recalculate, in case the rounding up increased this.
-			short* temp_buffer = malloc(advance_frames * 4);
-			OPL3_GenerateStream(&opl_chip, temp_buffer, advance_frames);
-			if (is_sound_on && enable_music) {
-				for (int sample = 0; sample < advance_frames * 2; ++sample) {
-					((short*)stream)[sample] += temp_buffer[sample];
+			int frames_left = advance_frames;
+			while (frames_left > 0) {
+				short temp_buffer[512 * 2];
+				int chunk = MIN(frames_left, 512);
+				OPL3_GenerateStream(&opl_chip, temp_buffer, chunk);
+				if (is_sound_on && enable_music) {
+					short* stream_shorts = (short*)stream;
+					for (int sample = 0; sample < chunk * 2; ++sample) {
+						int mixed = stream_shorts[sample] + ((temp_buffer[sample] * 3) / 5);
+						if (mixed > 32767) mixed = 32767;
+						else if (mixed < -32768) mixed = -32768;
+						stream_shorts[sample] = (short)mixed;
+					}
 				}
+				frames_left -= chunk;
+				stream += chunk * 4;
 			}
-			free(temp_buffer);
 
 			frames_needed -= advance_frames;
-			stream += advance_frames * 4;
 			// Advance the current MIDI tick position.
 			// Keep track of the partial ticks that have elapsed so that we do not fall behind.
 			float ticks_elapsed_float = (float)advance_us * ticks_per_beat / us_per_beat;
@@ -572,8 +579,8 @@ void midi_callback(void *userdata, Uint8 *stream, int len) {
 				}
 			}
 			if (num_finished_tracks >= num_midi_tracks) {
-				// All tracks have finished. Fill the remaining samples with silence and stop playback.
-				SDL_memset(stream, 0, frames_needed * 4);
+				// All tracks have finished. Stop playback.
+				// (Do not memset stream to silence to avoid cutting off digi sounds)
 //				printf("midi_callback(): sound ended\n");
 				SDL_LockAudio();
 				midi_playing = 0;

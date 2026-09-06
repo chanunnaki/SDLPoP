@@ -27,7 +27,9 @@ static const char stack[] = "$STACK:200000";
 #endif
 
 #ifdef __PSP__
+#include <pspkernel.h>
 #include <psppower.h>
+PSP_HEAP_SIZE_KB(-2048);
 #endif
 
 int main(int argc, char *argv[])

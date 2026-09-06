@@ -47,6 +47,13 @@ mods/*/
 prince
 !data/PRINCE/
 
+# PSP build artifacts
+*.prx
+*.pbp
+*.PBP
+dist/
+PARAM.SFO
+
 # Debug files
 *.dSYM/
 

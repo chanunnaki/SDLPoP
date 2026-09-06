@@ -156,6 +156,11 @@ enum setting_ids {
 	SETTING_USE_CORRECT_ASPECT_RATIO,
 	SETTING_USE_INTEGER_SCALING,
 	SETTING_SCALING_TYPE,
+#ifdef __PSP__
+	SETTING_PSP_DISPLAY_MODE,
+	SETTING_ENABLE_HUD_SPLIT,
+	SETTING_DECOUPLE_MENU,
+#endif
 	SETTING_ENABLE_FADE,
 	SETTING_ENABLE_FLASH,
 	SETTING_ENABLE_LIGHTING,
@@ -358,6 +363,9 @@ setting_type general_settings[] = {
 
 NAMES_LIST(use_hardware_acceleration_setting_names, {"OFF", "ON", "AUTO",});
 NAMES_LIST(scaling_type_setting_names, {"Sharp", "Fuzzy", "Blurry",});
+#ifdef __PSP__
+NAMES_LIST(psp_display_mode_setting_names, {"16:10", "16:9 Wide", "4:3",});
+#endif
 
 int integer_scaling_possible =
 #if SDL_VERSION_ATLEAST(2,0,5) // SDL_RenderSetIntegerScale
@@ -378,6 +386,21 @@ setting_type visuals_settings[] = {
 				               "On - Force hardware acceleration.\n"
 				               "Off - Disable hardware acceleration.\n"
 				               "Note: This requires a restart."},
+#ifdef __PSP__
+		{.id = SETTING_PSP_DISPLAY_MODE, .style = SETTING_STYLE_NUMBER, .number_type = SETTING_BYTE, .max = 2,
+				.linked = &psp_display_mode, .names_list = &psp_display_mode_setting_names_list,
+				.text = "PSP display mode",
+				.explanation = "16:10 - Authentic PoP aspect ratio (436x272).\n"
+				               "16:9 Wide - Fullscreen stretch (480x272).\n"
+				               "4:3 - Authentic DOS CRT pillarbox (362x272)."},
+		{.id = SETTING_ENABLE_HUD_SPLIT, .style = SETTING_STYLE_TOGGLE, .linked = &enable_hud_split,
+				.text = "HUD 2x integer split",
+				.explanation = "Render 192px playfield at 256px and 8px status bar at 16px (2x integer).\n"
+				               "Eliminates HUD shimmering and preserves crisp HP icons."},
+		{.id = SETTING_DECOUPLE_MENU, .style = SETTING_STYLE_TOGGLE, .linked = &decouple_menu_overlay,
+				.text = "Decoupled 1:1 menu",
+				.explanation = "Render pause/settings menu at 1:1 integer scale (320x200) over dimmed backdrop."},
+#endif
 		{.id = SETTING_USE_CORRECT_ASPECT_RATIO, .style = SETTING_STYLE_TOGGLE, .linked = &use_correct_aspect_ratio,
 				.text = "Use 4:3 aspect ratio",
 				.explanation = "Render the game in the originally intended 4:3 aspect ratio."
@@ -1360,9 +1383,13 @@ void draw_pause_menu_item(pause_menu_item_type* item, rect_type* parent, int* y_
 }
 
 void draw_pause_menu(void) {
-	pause_menu_alpha = 120;
-	draw_rect_with_alpha(&screen_rect, color_0_black, pause_menu_alpha);
-	draw_rect_with_alpha(&rect_bottom_text, color_0_black, 0); // Transparent so that the text "GAME PAUSED" is visible.
+	if (decouple_menu_overlay) {
+		SDL_FillRect(overlay_surface, NULL, 0);
+	} else {
+		pause_menu_alpha = 120;
+		draw_rect_with_alpha(&screen_rect, color_0_black, pause_menu_alpha);
+		draw_rect_with_alpha(&rect_bottom_text, color_0_black, 0); // Transparent so that the text "GAME PAUSED" is visible.
+	}
 	rect_type pause_rect_outer = {0, 110, 192, 210};
 	rect_type pause_rect_inner;
 	shrink2_rect(&pause_rect_inner, &pause_rect_outer, 5, 5);
@@ -1397,6 +1424,17 @@ void turn_setting_on_off(int setting_id, byte new_state, void* linked) {
 			start_fullscreen = new_state;
 			SDL_SetWindowFullscreen(window_, (new_state != 0) * SDL_WINDOW_FULLSCREEN_DESKTOP);
 			break;
+#ifdef __PSP__
+		case SETTING_PSP_DISPLAY_MODE:
+			psp_display_mode = new_state;
+			break;
+		case SETTING_ENABLE_HUD_SPLIT:
+			enable_hud_split = new_state;
+			break;
+		case SETTING_DECOUPLE_MENU:
+			decouple_menu_overlay = new_state;
+			break;
+#endif
 		case SETTING_USE_CORRECT_ASPECT_RATIO:
 			use_correct_aspect_ratio = new_state;
 			apply_aspect_ratio();
@@ -1824,8 +1862,12 @@ void draw_settings_area(settings_area_type* settings_area) {
 
 void draw_settings_menu(void) {
 	settings_area_type* settings_area = get_settings_area(active_settings_subsection);
-	pause_menu_alpha = (settings_area == NULL) ? 220 : 255;
-	draw_rect_with_alpha(&screen_rect, color_0_black, pause_menu_alpha);
+	if (decouple_menu_overlay) {
+		SDL_FillRect(overlay_surface, NULL, 0);
+	} else {
+		pause_menu_alpha = (settings_area == NULL) ? 220 : 255;
+		draw_rect_with_alpha(&screen_rect, color_0_black, pause_menu_alpha);
+	}
 
 	rect_type pause_rect_outer = {0, 10, 192, 80};
 	rect_type pause_rect_inner;
@@ -1974,7 +2016,7 @@ void draw_confirmation_dialog(int which_dialog, const char* text) {
 		if (highlighted_button != old_highlighted_button) {
 			old_highlighted_button = highlighted_button;
 			// Need to redraw the dialog box.
-			uint32_t clear_color = SDL_MapRGBA(current_target_surface->format, 0, 0, 0, 255);
+			uint32_t clear_color = SDL_MapRGBA(current_target_surface->format, 0, 0, 0, decouple_menu_overlay ? 0 : 255);
 			SDL_FillRect(overlay_surface, NULL, clear_color);
 			draw_rect(&copyprot_dialog->peel_rect, color_0_black);
 			dialog_method_2_frame(copyprot_dialog);
@@ -2039,7 +2081,7 @@ void draw_select_level_dialog(void) {
 
 			old_edited_level_number = menu_current_level;
 			// Need to redraw the dialog box.
-			uint32_t clear_color = SDL_MapRGBA(current_target_surface->format, 0, 0, 0, 255);
+			uint32_t clear_color = SDL_MapRGBA(current_target_surface->format, 0, 0, 0, decouple_menu_overlay ? 0 : 255);
 			SDL_FillRect(overlay_surface, NULL, clear_color);
 			draw_rect(&copyprot_dialog->peel_rect, color_0_black);
 			dialog_method_2_frame(copyprot_dialog);

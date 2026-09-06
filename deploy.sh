@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Deploy SDLPoP to local PPSSPP emulator and real hardware via nexus-b (ssh n)
+# Follows the shared infrastructure in /Users/chan/code/psp/PSP-DEV-SETUP.md
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIST_DIR="${SCRIPT_DIR}/dist/SDLPoP"
+HOST="n"
+FOLDER="SDLPoP"
+
+if [ ! -f "${DIST_DIR}/EBOOT.PBP" ]; then
+    echo "Dist package not found. Building first..."
+    "${SCRIPT_DIR}/build.sh"
+fi
+
+echo "=== Deploying SDLPoP ==="
+
+# 1. Local PPSSPP Emulator Deployment
+PPSSPP_CAT_DIR="${HOME}/.config/ppsspp/PSP/GAME/CAT_Homebrew/${FOLDER}"
+mkdir -p "${PPSSPP_CAT_DIR}"
+cp "${DIST_DIR}/EBOOT.PBP" "${PPSSPP_CAT_DIR}/"
+cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_CAT_DIR}/"
+rm -rf "${PPSSPP_CAT_DIR}/data"
+cp -R "${DIST_DIR}/data" "${PPSSPP_CAT_DIR}/"
+echo "[✓] Deployed to PPSSPP Homebrew category: ${PPSSPP_CAT_DIR}"
+
+PPSSPP_STANDARD_DIR="${HOME}/.config/ppsspp/PSP/GAME/${FOLDER}"
+mkdir -p "${PPSSPP_STANDARD_DIR}"
+cp "${DIST_DIR}/EBOOT.PBP" "${PPSSPP_STANDARD_DIR}/"
+cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_STANDARD_DIR}/"
+rm -rf "${PPSSPP_STANDARD_DIR}/data"
+cp -R "${DIST_DIR}/data" "${PPSSPP_STANDARD_DIR}/"
+echo "[✓] Deployed to PPSSPP standard Game dir: ${PPSSPP_STANDARD_DIR}"
+
+# 2. Hardware Deployment (nexus-b via ssh n)
+# Automounts at /mnt/psp/<unit>/PSP/GAME/ per PSP-DEV-SETUP.md
+deploy_hw() {
+    local unit="$1"
+    local target_dir="/mnt/psp/${unit}/PSP/GAME/${FOLDER}"
+
+    if ! ssh -o ConnectTimeout=3 "$HOST" "test -d /mnt/psp/${unit}/PSP/GAME" 2>/dev/null; then
+        echo "[-] Skip ${unit} -- not mounted on ${HOST}"
+        return
+    fi
+
+    echo "[*] Found ${unit} mounted on ${HOST}. Syncing to ${target_dir}..."
+    ssh "$HOST" "mkdir -p '${target_dir}'"
+    
+    # Sync release bundle, excluding macOS metadata
+    rsync -avz --inplace --delete --exclude=".*" --exclude="*.DS_Store" \
+        "${DIST_DIR}/" "${HOST}:${target_dir}/"
+
+    echo "[✓] Successfully deployed to physical ${unit} -> ${FOLDER}"
+}
+
+deploy_hw "PSP-3000-MH"
+deploy_hw "PSP-3000-WH"
+
+echo "=== Deployment Complete ==="
