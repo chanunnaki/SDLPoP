@@ -63,7 +63,7 @@ deploy_hw() {
     if [ -d "${DIST_DIR}/mods" ]; then
         echo "[*] Syncing mods directory to ${unit}..."
         ssh "$HOST" "mkdir -p '${target_dir}/mods'"
-        rsync -rt --modify-window=2 --exclude=".*" --exclude="*.DS_Store" \
+        rsync -a --inplace --modify-window=2 --exclude=".*" --exclude="*.DS_Store" \
             "${DIST_DIR}/mods/" "${HOST}:${target_dir}/mods/"
     fi
 
