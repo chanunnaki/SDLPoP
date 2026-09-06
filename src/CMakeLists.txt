@@ -79,6 +79,7 @@ set(SOURCE_FILES
         screenshot.c
         menu.c
         stb_vorbis.c
+        pak.c
         icon.rc
         )
 

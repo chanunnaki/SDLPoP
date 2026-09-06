@@ -19,6 +19,7 @@ The authors of this program may be contacted at https://forum.princed.org
 */
 
 #include "common.h"
+#include "pak.h"
 #include <setjmp.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -106,6 +107,7 @@ void pop_main() {
 	parse_cmdline_sound();
 
 	show_loading();
+	init_pak();
 	set_joy_mode();
 	cheats_enabled = check_param("megahit") != NULL;
 #ifdef USE_DEBUG_CHEATS

@@ -12,6 +12,9 @@ cd "${BUILD_DIR}"
 psp-cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_PRX=ON
 make -j"$(sysctl -n hw.ncpu)"
 
+echo "=== Building Resource Pack ==="
+python3 "${SCRIPT_DIR}/tools/build_pak.py"
+
 echo "=== Packaging Release Bundle ==="
 mkdir -p "${DIST_DIR}"
 cp -p "${SCRIPT_DIR}/EBOOT.PBP" "${DIST_DIR}/EBOOT.PBP"

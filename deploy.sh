@@ -46,8 +46,12 @@ deploy_hw() {
     echo "[*] Found ${unit} mounted on ${HOST}. Deploying to ${target_dir}..."
     ssh "$HOST" "mkdir -p '${target_dir}'"
     
-    # 1. Direct, instant deployment of binary and config (takes ~1s)
+    # 1. Direct, instant deployment of binary, config, and packed resource bundle (takes ~2s)
     scp -q "${DIST_DIR}/EBOOT.PBP" "${DIST_DIR}/SDLPoP.ini" "${HOST}:${target_dir}/"
+    if [ -f "${DIST_DIR}/data/res.pak" ]; then
+        ssh "$HOST" "mkdir -p '${target_dir}/data'"
+        scp -q "${DIST_DIR}/data/res.pak" "${HOST}:${target_dir}/data/res.pak"
+    fi
 
     # 2. Only transfer heavy assets if missing on the target
     if ! ssh "$HOST" "test -d '${target_dir}/data'" 2>/dev/null; then

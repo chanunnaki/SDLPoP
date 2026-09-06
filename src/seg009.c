@@ -19,6 +19,7 @@ The authors of this program may be contacted at https://forum.princed.org
 */
 
 #include "common.h"
+#include "pak.h"
 #include <time.h>
 #include <errno.h>
 
@@ -892,6 +893,19 @@ image_type* decode_image(image_data_type* image_data, dat_pal_type* palette) {
 
 // seg009:121A
 image_type* load_image(int resource_id, dat_pal_type* palette) {
+	// First: try instant pak cache from currently open DAT files
+	if (!use_custom_levelset) {
+		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+			char folder[16];
+			strncpy(folder, p->filename, sizeof(folder));
+			folder[15] = '\0';
+			size_t len = strlen(folder);
+			if (len >= 5 && folder[len-4] == '.') folder[len-4] = '\0';
+			image_type* img = load_image_from_pak(folder, resource_id);
+			if (img != NULL) return img;
+		}
+	}
+
 	// stub
 	data_location result;
 	int size;
@@ -3077,6 +3091,24 @@ void close_dat(dat_type* pointer) {
 
 // seg009:9F80
 void *load_from_opendats_alloc(int resource, const char* extension, data_location* out_result, int* out_size) {
+	// First: try instant pak cache for pal or bin from currently open DAT files
+	if (!use_custom_levelset && (strcmp(extension, "pal") == 0 || strcmp(extension, "bin") == 0)) {
+		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+			char folder[16];
+			strncpy(folder, p->filename, sizeof(folder));
+			folder[15] = '\0';
+			size_t len = strlen(folder);
+			if (len >= 5 && folder[len-4] == '.') folder[len-4] = '\0';
+			int pak_sz = 0;
+			void* area = load_data_from_pak(folder, resource, extension, &pak_sz);
+			if (area != NULL) {
+				if (out_result != NULL) *out_result = data_directory;
+				if (out_size != NULL) *out_size = pak_sz;
+				return area;
+			}
+		}
+	}
+
 	// stub
 	//printf("id = %d\n",resource);
 	dat_type* pointer;
