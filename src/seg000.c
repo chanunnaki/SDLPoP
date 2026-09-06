@@ -2441,6 +2441,9 @@ const char* splash_text_2 =
 		"Press any key to continue...";
 
 void show_splash() {
+#ifdef __PSP__
+	return;
+#else
 	if (!enable_info_screen || start_level >= 0) return;
 	current_target_surface = onscreen_surface_;
 	draw_rect(&screen_rect, color_0_black);
@@ -2478,9 +2481,17 @@ void show_splash() {
 	key_states[SDL_SCANCODE_LSHIFT] &= ~KEYSTATE_HELD; // don't immediately start the game if Shift was pressed!
 	key_states[SDL_SCANCODE_RSHIFT] &= ~KEYSTATE_HELD;
 #endif
+#endif
 }
 
 const char* get_writable_file_path(char* custom_path_buffer, size_t max_len, const char* file_name) {
+#ifdef __PSP__
+	if (!use_custom_levelset) {
+		return file_name;
+	}
+	snprintf_check(custom_path_buffer, max_len, "%s/%s", mod_data_path, file_name);
+	return custom_path_buffer;
+#else
 	// If the SDLPOP_SAVE_PATH environment variable is set, put all saves into the directory it points to.
 	// Otherwise, save to the home directory
 #if defined WIN32 || _WIN32 || WIN64 || _WIN64
@@ -2522,5 +2533,6 @@ const char* get_writable_file_path(char* custom_path_buffer, size_t max_len, con
 	// if playing a custom levelset, try to use the mod folder
 	snprintf_check(custom_path_buffer, max_len, "%s/%s", mod_data_path, file_name);
 	return custom_path_buffer;
+#endif
 }
 

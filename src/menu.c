@@ -348,9 +348,11 @@ setting_type general_settings[] = {
 				.explanation = "Show the in-game menu when you pause the game.\n"
 						"If disabled, you can still bring up the menu by pressing Backspace."},
 #endif
+#ifndef __PSP__
 		{.id = SETTING_ENABLE_INFO_SCREEN, .style = SETTING_STYLE_TOGGLE, .linked = &enable_info_screen,
 				.text = "Display info screen on launch",
 				.explanation = "Display the SDLPoP information screen when the game starts."},
+#endif
 		{.id = SETTING_ENABLE_SOUND, .style = SETTING_STYLE_TOGGLE, .linked = &is_sound_on,
 				.text = "Enable sound",
 				.explanation = "Turn sound on or off."},
