@@ -85,8 +85,13 @@ pause_menu_item_type pause_menu_items[] = {
 		// TODO: Add a cheats menu, where you can choose a cheat from a list?
 		/*{.id = PAUSE_MENU_CHEATS,        .text = "CHEATS", .required = &cheats_enabled},*/
 #ifdef USE_QUICKSAVE // TODO: If quicksave is disabled, show regular save/load instead?
+#ifdef __PSP__
+		{.id = PAUSE_MENU_SAVE_GAME,     .text = "QUICKSAVE"},
+		{.id = PAUSE_MENU_LOAD_GAME,     .text = "QUICKLOAD"},
+#else
 		{.id = PAUSE_MENU_SAVE_GAME,     .text = "QUICKSAVE (F6)"},
 		{.id = PAUSE_MENU_LOAD_GAME,     .text = "QUICKLOAD (F9)"},
+#endif
 #endif
 		{.id = PAUSE_MENU_RESTART_LEVEL, .text = "RESTART LEVEL"},
 		{.id = PAUSE_MENU_SETTINGS,      .text = "SETTINGS"},
@@ -116,7 +121,9 @@ pause_menu_item_type settings_menu_items[] = {
 		{.id = SETTINGS_MENU_GAMEPLAY, .text = "GAMEPLAY"},
 		{.id = SETTINGS_MENU_VISUALS, .text = "VISUALS"},
 		{.id = SETTINGS_MENU_MODS, .text = "MODS"},
+#ifndef __PSP__
 		{.id = SETTINGS_MENU_CONTROLS, .text = "CONTROLS"},
+#endif
 		{.id = SETTINGS_MENU_BACK, .text = "BACK"},
 };
 int active_settings_subsection = 0;
@@ -335,8 +342,12 @@ typedef struct setting_type {
 setting_type general_settings[] = {
 		{.id = SETTING_SHOW_MENU_ON_PAUSE, .style = SETTING_STYLE_TOGGLE, .linked = &enable_pause_menu,
 				.text = "Enable pause menu",
+#ifdef __PSP__
+				.explanation = "Show the in-game menu when you press START to pause the game."},
+#else
 				.explanation = "Show the in-game menu when you pause the game.\n"
 						"If disabled, you can still bring up the menu by pressing Backspace."},
+#endif
 		{.id = SETTING_ENABLE_INFO_SCREEN, .style = SETTING_STYLE_TOGGLE, .linked = &enable_info_screen,
 				.text = "Display info screen on launch",
 				.explanation = "Display the SDLPoP information screen when the game starts."},
@@ -346,9 +357,11 @@ setting_type general_settings[] = {
 		{.id = SETTING_ENABLE_MUSIC, .style = SETTING_STYLE_TOGGLE, .linked = &enable_music,
 				.text = "Enable music",
 				.explanation = "Turn music on or off."},
+#ifndef __PSP__
 		{.id = SETTING_ENABLE_CONTROLLER_RUMBLE, .style = SETTING_STYLE_TOGGLE, .linked = &enable_controller_rumble,
 				.text = "Enable controller rumble",
 				.explanation = "If using a controller with a rumble motor, provide haptic feedback when the kid is hurt."},
+#endif
 		{.id = SETTING_JOYSTICK_THRESHOLD, .style = SETTING_STYLE_NUMBER, .number_type = SETTING_INT,
 				.linked = &joystick_threshold, .min = 0, .max = INT16_MAX,
 				.text = "Joystick threshold",
@@ -361,12 +374,15 @@ setting_type general_settings[] = {
 				.text = "Restore defaults...", .explanation = "Revert all settings to the default state."},
 };
 
+#ifndef __PSP__
 NAMES_LIST(use_hardware_acceleration_setting_names, {"OFF", "ON", "AUTO",});
 NAMES_LIST(scaling_type_setting_names, {"Sharp", "Fuzzy", "Blurry",});
+#endif
 #ifdef __PSP__
 NAMES_LIST(psp_display_mode_setting_names, {"16:10", "16:9 Wide", "4:3",});
 #endif
 
+#ifndef __PSP__
 int integer_scaling_possible =
 #if SDL_VERSION_ATLEAST(2,0,5) // SDL_RenderSetIntegerScale
 	1
@@ -374,8 +390,10 @@ int integer_scaling_possible =
 	0
 #endif
 ;
+#endif
 
 setting_type visuals_settings[] = {
+#ifndef __PSP__
 		{.id = SETTING_FULLSCREEN, .style = SETTING_STYLE_TOGGLE, .linked = &start_fullscreen,
 				.text = "Start fullscreen",
 				.explanation = "Start the game in fullscreen mode.\nYou can also toggle fullscreen by pressing Alt+Enter."},
@@ -386,6 +404,7 @@ setting_type visuals_settings[] = {
 				               "On - Force hardware acceleration.\n"
 				               "Off - Disable hardware acceleration.\n"
 				               "Note: This requires a restart."},
+#endif
 #ifdef __PSP__
 		{.id = SETTING_PSP_DISPLAY_MODE, .style = SETTING_STYLE_NUMBER, .number_type = SETTING_BYTE, .max = 2,
 				.linked = &psp_display_mode, .names_list = &psp_display_mode_setting_names_list,
@@ -400,7 +419,7 @@ setting_type visuals_settings[] = {
 		{.id = SETTING_DECOUPLE_MENU, .style = SETTING_STYLE_TOGGLE, .linked = &decouple_menu_overlay,
 				.text = "Decoupled 1:1 menu",
 				.explanation = "Render pause/settings menu at 1:1 integer scale (320x200) over dimmed backdrop."},
-#endif
+#else
 		{.id = SETTING_USE_CORRECT_ASPECT_RATIO, .style = SETTING_STYLE_TOGGLE, .linked = &use_correct_aspect_ratio,
 				.text = "Use 4:3 aspect ratio",
 				.explanation = "Render the game in the originally intended 4:3 aspect ratio."
@@ -417,6 +436,7 @@ setting_type visuals_settings[] = {
 				.explanation = "Sharp - Use nearest neighbour resampling.\n"
 						"Fuzzy - First upscale to double size, then use smooth scaling.\n"
 						"Blurry - Use smooth scaling."},
+#endif
 #ifdef USE_FADE
 		{.id = SETTING_ENABLE_FADE, .style = SETTING_STYLE_TOGGLE, .linked = &enable_fade,
 				.text = "Fading enabled",
@@ -446,7 +466,11 @@ setting_type gameplay_settings[] = {
 #ifdef USE_QUICKSAVE
 		{.id = SETTING_ENABLE_QUICKSAVE, .style = SETTING_STYLE_TOGGLE, .linked = &enable_quicksave,
 				.text = "Enable quicksave",
+#ifdef __PSP__
+				.explanation = "Enable quicksave/load feature.\nSelect QUICKSAVE/QUICKLOAD in Pause menu."},
+#else
 				.explanation = "Enable quicksave/load feature.\nPress F6 to quicksave, F9 to quickload."},
+#endif
 		{.id = SETTING_ENABLE_QUICKSAVE_PENALTY, .style = SETTING_STYLE_TOGGLE, .linked = &enable_quicksave_penalty,
 				.text = "Quicksave time penalty",
 				.explanation = "Try to let time run out when quickloading (similar to dying).\n"
@@ -454,11 +478,13 @@ setting_type gameplay_settings[] = {
 						"but a penalty (up to one minute) will be applied."},
 #endif
 #ifdef USE_REPLAY
+#ifndef __PSP__
 		{.id = SETTING_ENABLE_REPLAY, .style = SETTING_STYLE_TOGGLE, .linked = &enable_replay,
 				.text = "Enable replays",
 				.explanation = "Enable recording/replay feature.\n"
 						"Press Ctrl+Tab in-game to start recording.\n"
 						"To stop, press Ctrl+Tab again."},
+#endif
 #endif
 		{.id = SETTING_USE_FIXES_AND_ENHANCEMENTS, .style = SETTING_STYLE_TOGGLE, .linked = &use_fixes_and_enhancements,
 				.text = "Enhanced mode (allow bug fixes)",
@@ -1063,6 +1089,7 @@ setting_type level_settings[] = {
 						"Set to -1 to disable."},
 };
 
+#ifndef __PSP__
 setting_type controls_settings[] = {
 		{.id = SETTING_KEY_LEFT, .style = SETTING_STYLE_KEY, .required = NULL,
 				.linked = &key_left, .number_type = SETTING_INT,
@@ -1101,6 +1128,7 @@ setting_type controls_settings[] = {
 				.text = "Exit a menu, pause",
 				.explanation = ""},
 };
+#endif
 
 typedef struct settings_area_type {
 	setting_type* settings;
@@ -1112,7 +1140,9 @@ settings_area_type gameplay_settings_area = { .settings = gameplay_settings, .se
 settings_area_type visuals_settings_area = { .settings = visuals_settings, .setting_count = COUNT(visuals_settings)};
 settings_area_type mods_settings_area = { .settings = mods_settings, .setting_count = COUNT(mods_settings)};
 settings_area_type level_settings_area = { .settings = level_settings, .setting_count = COUNT(level_settings)};
+#ifndef __PSP__
 settings_area_type controls_settings_area = { .settings = controls_settings, .setting_count = COUNT(controls_settings)};
+#endif
 
 settings_area_type* get_settings_area(int menu_item_id) {
 	switch(menu_item_id) {
@@ -1128,8 +1158,10 @@ settings_area_type* get_settings_area(int menu_item_id) {
 			return &mods_settings_area;
 		case SETTINGS_MENU_LEVEL_CUSTOMIZATION:
 			return &level_settings_area;
+#ifndef __PSP__
 		case SETTINGS_MENU_CONTROLS:
 			return &controls_settings_area;
+#endif
 	}
 }
 
@@ -1172,7 +1204,9 @@ void init_menu() {
 	init_settings_list(gameplay_settings, COUNT(gameplay_settings));
 	init_settings_list(mods_settings, COUNT(mods_settings));
 	init_settings_list(level_settings, COUNT(level_settings));
+#ifndef __PSP__
 	init_settings_list(controls_settings, COUNT(controls_settings));
+#endif
 }
 
 bool is_mouse_over_rect(rect_type* rect) {
@@ -1317,7 +1351,9 @@ void pause_menu_clicked(pause_menu_item_type* item) {
 		case SETTINGS_MENU_GAMEPLAY:
 		case SETTINGS_MENU_VISUALS:
 		case SETTINGS_MENU_MODS:
+#ifndef __PSP__
 		case SETTINGS_MENU_CONTROLS:
+#endif
 			enter_settings_subsection(item->id);
 			break;
 		case SETTINGS_MENU_BACK:
@@ -1962,7 +1998,9 @@ void confirmation_dialog_result(int which_dialog, int button) {
 			play_menu_sound(sound_10_sword_vs_sword);
 			were_settings_changed = true;
 			set_options_to_default();
+#ifndef __PSP__
 			turn_setting_on_off(SETTING_USE_INTEGER_SCALING, use_integer_scaling, NULL);
+#endif
 #ifdef USE_LIGHTING
 			turn_setting_on_off(SETTING_ENABLE_LIGHTING, enable_lighting, NULL);
 #endif
