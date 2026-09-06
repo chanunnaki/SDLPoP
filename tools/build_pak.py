@@ -38,7 +38,9 @@ def build_pak(base_dir):
             im = Image.open(f)
             w, h = im.size
             pal = im.getpalette() or []
-            n_pal_colors = len(pal) // 3
+            if len(pal) >= 16 * 3:
+                pal = pal[:16 * 3]
+            n_pal_colors = min(16, len(pal) // 3)
             pal_bytes = bytes(pal)
             pixels = bytes(im.getdata())
             payload = pal_bytes + pixels

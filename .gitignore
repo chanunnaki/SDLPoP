@@ -99,3 +99,5 @@ screenshots/
 .DS_Store
 custom levels/
 
+*.dylib
+tools/__pycache__
