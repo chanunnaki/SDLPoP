@@ -1255,7 +1255,7 @@ static void populate_mods_list(void) {
 	init_settings_list(mod_list_settings, count);
 }
 
-static bool save_mod_to_ini(const char* mod_name) {
+bool save_mod_to_ini(const char* mod_name) {
 	const char* ini_path = locate_file("SDLPoP.ini");
 	const char* cfg_path = locate_file("SDLPoP.cfg");
 

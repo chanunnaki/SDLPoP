@@ -856,6 +856,9 @@ void load_mod_options() {
 			levelset_name[0] = '\0';
 			mod_has_data_dir = false;
 			mod_has_music_dir = false;
+#ifdef USE_MENU
+			save_mod_to_ini("original");
+#endif
 		}
 	}
 	turn_fixes_and_enhancements_on_off(use_fixes_and_enhancements);

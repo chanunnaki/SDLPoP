@@ -723,6 +723,7 @@ void process_additional_menu_input(void);
 int key_test_paused_menu(int key);
 void load_ingame_settings(void);
 void menu_was_closed(void);
+bool save_mod_to_ini(const char* mod_name);
 #endif
 
 // midi.c

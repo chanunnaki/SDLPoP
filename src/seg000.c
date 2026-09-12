@@ -1859,8 +1859,21 @@ int showmessage_any_key(char *text,int arg_4,void *arg_0) {
 		idle();
 		clear_kbd_buf(); // Don't leak the pressed key into the menu.
 		key = last_any_key_scancode; // Press any key to continue...
+#ifdef __PSP__
+		if (key == 0) {
+			for (int i = 0; i < JOYINPUT_NUM; ++i) {
+				if (joy_button_states[i] & (KEYSTATE_HELD | KEYSTATE_HELD_NEW)) {
+					key = SDL_SCANCODE_RETURN;
+					break;
+				}
+			}
+		}
+#endif
 		last_any_key_scancode = 0;
 	} while(key == 0);
+#ifdef __PSP__
+	for (int i = 0; i < JOYINPUT_NUM; ++i) joy_button_states[i] = 0;
+#endif
 	need_full_redraw = 1; // lazy: instead of neatly restoring only the relevant part, just redraw the whole screen
 	return key;
 }
