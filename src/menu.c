@@ -122,7 +122,7 @@ pause_menu_item_type settings_menu_items[] = {
 		{.id = SETTINGS_MENU_GENERAL, .text = "GENERAL"},
 		{.id = SETTINGS_MENU_GAMEPLAY, .text = "GAMEPLAY"},
 		{.id = SETTINGS_MENU_VISUALS, .text = "VISUALS"},
-		{.id = SETTINGS_MENU_MODS, .text = "MODS"},
+		{.id = SETTINGS_MENU_MODS, .text = "RULES"},
 #ifndef __PSP__
 		{.id = SETTINGS_MENU_CONTROLS, .text = "CONTROLS"},
 #endif
