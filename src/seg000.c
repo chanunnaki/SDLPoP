@@ -2004,6 +2004,12 @@ const rect_type rect_titles = {106,24,195,296};
 
 // seg000:17E6
 void show_title() {
+	clear_kbd_buf();
+	last_any_key_scancode = 0;
+	control_shift = CONTROL_RELEASED;
+#ifdef __PSP__
+	for (int i = 0; i < JOYINPUT_NUM; ++i) joy_button_states[i] = 0;
+#endif
 	is_in_title = true;
 	load_opt_sounds(sound_50_story_2_princess, sound_55_story_1_absence); // main theme, story, princess door
 	dont_reset_time = 0;

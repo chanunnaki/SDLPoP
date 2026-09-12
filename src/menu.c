@@ -2285,11 +2285,22 @@ void confirmation_dialog_result(int which_dialog, int button) {
 		} else if (which_dialog == DIALOG_CONFIRM_RESTART_MOD) {
 			play_menu_sound(sound_10_sword_vs_sword);
 
-			// 1. Write the new choice to SDLPoP.ini and delete SDLPoP.cfg
+			// 1. Reset all dialog and menu states immediately so no modal lingers across restart
+			current_dialog_box = DIALOG_NONE;
+			current_dialog_text = NULL;
+			active_settings_subsection = 0;
+			highlighted_settings_subsection = 0;
+			reset_paused_menu();
+			clear_menu_controls();
+			need_close_menu = true;
+			escape_key_suppressed = false;
+			if (is_menu_shown) menu_was_closed();
+
+			// 2. Write the new choice to SDLPoP.ini and delete SDLPoP.cfg
 			save_mod_to_ini(pending_mod_name);
 			were_settings_changed = false;
 
-			// 2. Set levelset in memory
+			// 3. Set levelset in memory
 			if (strcasecmp(pending_mod_name, "original") == 0) {
 				use_custom_levelset = 0;
 				levelset_name[0] = '\0';
@@ -2297,13 +2308,53 @@ void confirmation_dialog_result(int which_dialog, int button) {
 				use_custom_levelset = 1;
 				snprintf_check(levelset_name, sizeof(levelset_name), "%s", pending_mod_name);
 			}
+			pending_mod_name[0] = '\0';
 
-			// 3. Reload mod options and graphics/sound resources
+			// 4. Reload mod options and graphics/sound resources
 			load_mod_options();
 			reload_resources();
 
-			// 4. Close menu cleanly and restart the game in-place
-			if (is_menu_shown) menu_was_closed();
+			// 5. Wait for all buttons/keys to be released and flush input queue so the button press
+			// that confirmed the dialog does NOT carry over into show_title() and skip the intro.
+			Uint32 start_wait = SDL_GetTicks();
+			while (SDL_GetTicks() - start_wait < 600) {
+				process_events();
+				bool any_held = false;
+				for (int i = 0; i < JOYINPUT_NUM; i++) {
+					if (joy_button_states[i] & KEYSTATE_HELD) {
+						any_held = true;
+						break;
+					}
+				}
+				for (int i = 0; i < SDL_NUM_SCANCODES; i++) {
+					if (key_states[i] & KEYSTATE_HELD) {
+						any_held = true;
+						break;
+					}
+				}
+				if (!any_held) break;
+				SDL_Delay(10);
+			}
+			SDL_Delay(50);
+
+			clear_kbd_buf();
+			last_any_key_scancode = 0;
+			control_shift = CONTROL_RELEASED;
+			control_shift2 = CONTROL_RELEASED;
+			control_x = CONTROL_RELEASED;
+			control_y = CONTROL_RELEASED;
+			mouse_clicked = false;
+			mouse_button_clicked_right = false;
+			pressed_enter = false;
+			for (int i = 0; i < SDL_NUM_SCANCODES; i++) key_states[i] = 0;
+			for (int i = 0; i < JOYINPUT_NUM; i++) joy_button_states[i] = 0;
+
+			SDL_Event ev;
+			while (SDL_PollEvent(&ev)) ;
+
+			// 6. Restart into the intro/title sequence
+			stop_sounds();
+			is_in_title = false;
 			start_level = -1;
 			start_game();
 		}
