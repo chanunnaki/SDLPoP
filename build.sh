@@ -10,7 +10,8 @@ mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}"
 
 psp-cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_PRX=ON
-make -j"$(sysctl -n hw.ncpu)"
+NPROC=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+make -j"${NPROC}"
 
 if [ ! -f "${SCRIPT_DIR}/data/res_dos.pak" ]; then
     echo "=== Building Resource Pack ==="
@@ -25,10 +26,6 @@ if [ ! -d "${DIST_DIR}/data" ]; then
     cp -a "${SCRIPT_DIR}/data" "${DIST_DIR}/data"
 else
     rsync -a --delete "${SCRIPT_DIR}/data/" "${DIST_DIR}/data/"
-fi
-if [ -d "${SCRIPT_DIR}/mods" ]; then
-    mkdir -p "${DIST_DIR}/mods"
-    rsync -a "${SCRIPT_DIR}/mods/" "${DIST_DIR}/mods/"
 fi
 
 echo "=== Build Complete! ==="
