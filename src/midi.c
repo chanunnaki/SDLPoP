@@ -528,10 +528,17 @@ void midi_callback(void *userdata, Uint8 *stream, int len) {
 				if (is_sound_on && enable_music) {
 					short* stream_shorts = (short*)stream;
 					for (int sample = 0; sample < chunk * 2; ++sample) {
-						int mixed = stream_shorts[sample] + ((temp_buffer[sample] * 3) / 5);
-						if (mixed > 32767) mixed = 32767;
-						else if (mixed < -32768) mixed = -32768;
-						stream_shorts[sample] = (short)mixed;
+						if (stream_shorts[sample] != 0) {
+							// Blend sound effect and music with balanced headroom to prevent digital clipping
+							int sfx = (stream_shorts[sample] * 3) / 4;
+							int mus = (temp_buffer[sample] * 2) / 5;
+							int mixed = sfx + mus;
+							if (mixed > 32767) mixed = 32767;
+							else if (mixed < -32768) mixed = -32768;
+							stream_shorts[sample] = (short)mixed;
+						} else {
+							stream_shorts[sample] = (short)((temp_buffer[sample] * 3) / 5);
+						}
 					}
 				}
 				frames_left -= chunk;
@@ -539,17 +546,23 @@ void midi_callback(void *userdata, Uint8 *stream, int len) {
 			}
 
 			frames_needed -= advance_frames;
-			// Advance the current MIDI tick position.
-			// Keep track of the partial ticks that have elapsed so that we do not fall behind.
-			float ticks_elapsed_float = (float)advance_us * ticks_per_beat / us_per_beat;
-			int64_t ticks_elapsed = (int64_t) ticks_elapsed_float;
-			midi_current_pos_fract_part += (ticks_elapsed_float - ticks_elapsed);
-			if (midi_current_pos_fract_part > 1.0f) {
-				midi_current_pos_fract_part -= 1.0f;
-				ticks_elapsed += 1;
+			if (advance_us >= us_to_next_pause) {
+				// Exact pause expiration: advance by all remaining ticks to avoid 1-tick float accumulation drift
+				midi_current_pos += ticks_to_next_pause;
+				midi_current_pos_fract_part = 0;
+				ticks_to_next_pause = 0;
+			} else {
+				// Advance partial ticks when audio buffer was filled before the next event
+				float ticks_elapsed_float = (float)advance_us * ticks_per_beat / us_per_beat;
+				int64_t ticks_elapsed = (int64_t) ticks_elapsed_float;
+				midi_current_pos_fract_part += (ticks_elapsed_float - ticks_elapsed);
+				if (midi_current_pos_fract_part > 1.0f) {
+					midi_current_pos_fract_part -= 1.0f;
+					ticks_elapsed += 1;
+				}
+				midi_current_pos += ticks_elapsed;
+				ticks_to_next_pause -= ticks_elapsed;
 			}
-			midi_current_pos += ticks_elapsed;
-			ticks_to_next_pause -= ticks_elapsed;
 		} else {
 			// Need to process MIDI events on one or more tracks.
 			int num_finished_tracks = 0;
@@ -660,9 +673,9 @@ void play_midi_sound(sound_buffer_type* buffer) {
 		return;
 	}
 
-	// Initialize the OPL chip.
+	// Initialize the OPL chip in OPL2 mode (authentic 9-channel AdLib synthesis)
 	opl_reset(digi_audiospec->freq);
-	opl_write_reg(0x105, 0x01); // OPL3 enable (note: the PoP1 Adlib sounds don't actually use OPL3 extensions)
+	// Note: PoP AdLib music is strictly OPL2 (9 voices); keeping newm=0 enables the optimized OPL2 fast path.
 	for (int voice = 0; voice < NUM_OPL_VOICES; ++voice) {
 		opl_write_instrument(&instruments[0], voice);
 		voice_instrument[voice] = 0;
