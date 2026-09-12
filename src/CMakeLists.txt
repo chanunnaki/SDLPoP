@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
-project(SDLPoP)
+project(SDLPoP-PSP)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=implicit-function-declaration")
 
 # have CMake output binaries to the directory that contains the source files
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${SDLPoP_SOURCE_DIR}/..")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/..")
 
 # SDLPoP requires the SDL2 and SDL2_image development libraries.
 # You can pass the SDL2 location to CMake like so: -DSDL2="C:/work/libraries/SDL2-2.0.8"
@@ -98,9 +98,9 @@ else()
     set (MACOSX_BUNDLE_INFO_STRING          ${PROJECT_NAME})
     set (MACOSX_BUNDLE_ICON_FILE            "icon.icns")
     set_source_files_properties(${MACOSX_BUNDLE_ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-    set (MACOSX_BUNDLE_GUI_IDENTIFIER       "org.princed.SDLPoP")
+    set (MACOSX_BUNDLE_GUI_IDENTIFIER       "org.princed.SDLPoP-PSP")
     set (MACOSX_BUNDLE_LONG_VERSION_STRING  ${SDLPoP_VERSION})
-    set (MACOSX_BUNDLE_BUNDLE_NAME          "SDLPoP")
+    set (MACOSX_BUNDLE_BUNDLE_NAME          "SDLPoP-PSP")
     set (MACOSX_BUNDLE_SHORT_VERSION_STRING ${SDLPoP_VERSION})
     set (MACOSX_BUNDLE_BUNDLE_VERSION       ${SDLPoP_VERSION})
     set (MACOSX_BUNDLE_COPYRIGHT            "GNU General Public Licence, v3")

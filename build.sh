@@ -3,9 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/src/build"
-DIST_DIR="${SCRIPT_DIR}/dist/SDLPoP"
+DIST_DIR="${SCRIPT_DIR}/dist/SDLPoP-PSP"
 
-echo "=== Building SDLPoP for PSP ==="
+echo "=== Building SDLPoP-PSP for PSP ==="
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}"
 

@@ -1,6 +1,5 @@
-# SDLPoP for PlayStation Portable (PSP)
-
-Native port of **SDLPoP** (open-source Prince of Persia 1 engine) for the Sony PlayStation Portable (PSP-1000 / PSP-2000 / PSP-3000 / PSP-Go / PS Vita Adrenaline) and PPSSPP emulator, built using the modern `pspdev` toolchain.
+# SDLPoP-PSP
+Native port of **Prince of Persia** (SDLPoP) for the Sony PlayStation Portable (PSP-1000 / PSP-2000 / PSP-3000 / PSP-Go / PS Vita Adrenaline) and PPSSPP emulator, built using the modern `pspdev` toolchain.
 
 ---
 
@@ -88,7 +87,7 @@ This will:
 ```
 
 Automatically detects and deploys to:
-1. **PPSSPP Emulator**: `~/.config/ppsspp/PSP/GAME/CAT_Homebrew/SDLPoP/` and `~/.config/ppsspp/PSP/GAME/SDLPoP/`.
+1. **PPSSPP Emulator**: `~/.config/ppsspp/PSP/GAME/CAT_Homebrew/SDLPoP-PSP/` and `~/.config/ppsspp/PSP/GAME/SDLPoP-PSP/`.
 2. **Physical PSP Hardware**: Direct USB mounts (`/Volumes/NO NAME/...`) and network automounts (e.g. via `ssh n`).
 
 ---
@@ -98,6 +97,12 @@ Automatically detects and deploys to:
 Configure settings in `SDLPoP.ini` or on-the-fly in the in-game **Settings $\to$ Visuals** menu:
 
 ```ini
+; Graphics Pack Selector:
+; * dos      = Classic DOS PC graphics (res_dos.pak) (default)
+; * snes     = Super Nintendo 16-bit graphics (res_snes.pak)
+; * snes_alt = Alternative SNES visual rework (res_snes_alt.pak)
+graphics_pack = dos
+
 ; Display mode on PSP (480x272 screen):
 ; * 16:10 = Authentic Prince of Persia aspect ratio (436x272, 22px pillars). (default)
 ; * wide  = Full widescreen stretch across the entire screen (480x272).
@@ -127,4 +132,13 @@ For upstream PC/DOS documentation, modding specifications, CusPoP support, repla
 - **Jordan Mechner**: Creator of the original Prince of Persia
 - **PSPDEV**: [pspdev](https://github.com/pspdev/pspdev) toolchain and SDK libraries
 - **striga, sharkwouter**: Initial PSP scaffolding
-- **chanunnaki**: Enhanced PSP port (decoupled 1:1 overlay, 2x integer HUD split, streaming audio, 64MB RAM unlock, modern CMake build)
+- **chanunnaki**: Enhanced PSP port (decoupled 1:1 overlay, 2x integer HUD split, streaming audio, 64MB RAM unlock, modern CMake build, fast binary PAK asset runtime)
+
+### Graphics Packs & Custom Level Authors
+- **KJ**: Creator of *SNES Remnants* (`0000149` / `0000296` on [popot.org](https://www.popot.org/custom_levels.php?mod=0000149)), source for the **SNES Graphics Pack** (`res_snes.pak`):
+  - **brain**: Authentic SNES guard palettes and sprites, Prince sprites, and Palace environment tiles (*Total Pack 3.0*).
+  - **PoP_MoreSNES**: Character sprites (Kid, Fat guard, Skeleton, Jaffar/Vizier, Shadow, Princess & Vizier).
+  - **Total Pack 3.0**: *SNES Blue* dungeon environment graphics.
+  - **tV2 & programmer**: SNES-style intro cinematic backdrop (*Revolution mod*).
+- **Maurice Kaltofen (mk1995)**: Creator of *SNES-PC-set* (`0000042` on [popot.org](https://www.popot.org/custom_levels.php?mod=0000042)), source for the **SNES Alt Graphics Pack** (`res_snes_alt.pak`):
+  - 256-color palette adaptation and sprite rework bringing DOS PC Prince of Persia assets closer to the SNES visual presentation.
