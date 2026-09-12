@@ -16,6 +16,12 @@ Native port of **Prince of Persia** (SDLPoP) for the Sony PlayStation Portable (
   - `16:10`: Authentic Prince of Persia aspect ratio ($436 \times 272$, 22px symmetrical black pillars).
   - `16:9 Wide`: Full widescreen stretch across the entire screen ($480 \times 272$).
   - `4:3`: Authentic DOS CRT aspect ratio ($362 \times 272$, 59px symmetrical black pillars).
+- **Switchable Visual Asset Packs (DOS / SNES / SNES Alt)**:
+  - Switch graphics styles live on-the-fly from the in-game **Visuals $\to$ Graphics pack** menu or via `SDLPoP.ini`:
+    - **DOS**: Classic authentic PC MS-DOS visuals (`res_dos.pak`, default).
+    - **SNES**: Super Nintendo 16-bit sprites and color palettes (`res_snes.pak`).
+    - **SNES Alt**: Hybrid 256-color palette adaptation by Maurice Kaltofen / mk1995 (`res_snes_alt.pak`).
+  - **Zero-Latency In-RAM PAK Architecture**: Assets are pre-baked into binary archives (`data/res_*.pak`), replacing ~1,000+ loose file operations on the slow Memory Stick with instant in-memory switching while preserving the authentic original 12-level campaign and gameplay.
 - **On-Demand OGG Music Streaming**:
   - Bundled with all 22 official authentic DOS OGG music tracks in `data/music/`.
   - Streams on-demand via `stb_vorbis` without startup preloading or memory bloat (~150KB peak RAM vs 20MB).
