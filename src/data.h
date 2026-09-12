@@ -728,6 +728,7 @@ extern char graphics_pack_name[POP_MAX_PATH];
 extern char mod_data_path[POP_MAX_PATH];
 extern bool skip_mod_data_files;
 extern bool skip_normal_data_files;
+extern bool mod_has_data_dir INIT(= false);
 
 extern byte use_fixes_and_enhancements INIT(= 0);
 extern byte enable_copyprot INIT(= 0);

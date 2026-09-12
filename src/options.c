@@ -815,11 +815,18 @@ void load_mod_options() {
 				// It's a directory
 				ok = true;
 				snprintf_check(mod_data_path, sizeof(mod_data_path), "%s", located_folder_name);
+				char mod_data_dir_check[POP_MAX_PATH];
+				snprintf_check(mod_data_dir_check, sizeof(mod_data_dir_check), "%s/data", located_folder_name);
+				struct stat st_data;
+				mod_has_data_dir = (stat(mod_data_dir_check, &st_data) == 0 && S_ISDIR(st_data.st_mode));
 				// Try to load PRINCE.EXE (DOS)
 				load_dos_exe_modifications(located_folder_name);
 				// Try to load mod.ini
 				char mod_ini_filename[POP_MAX_PATH];
 				snprintf_check(mod_ini_filename, sizeof(mod_ini_filename), "%s/%s", located_folder_name, "mod.ini");
+				if (!file_exists(mod_ini_filename)) {
+					snprintf_check(mod_ini_filename, sizeof(mod_ini_filename), "%s/%s", located_folder_name, "MOD.INI");
+				}
 				if (file_exists(mod_ini_filename)) {
 					// Nearly all mods would want to use custom options, so always allow them.
 					use_custom_options = 1;
@@ -840,6 +847,7 @@ void load_mod_options() {
 		if (!ok) {
 			use_custom_levelset = 0;
 			levelset_name[0] = '\0';
+			mod_has_data_dir = false;
 		}
 	}
 	turn_fixes_and_enhancements_on_off(use_fixes_and_enhancements);

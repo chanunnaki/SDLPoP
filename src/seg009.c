@@ -444,7 +444,7 @@ int showmessage(char* text,int arg_4,void* arg_0);
 
 // seg009:0F58
 dat_type* open_dat(const char* filename, int optional) {
-	if (!use_custom_levelset && is_pak_available()) {
+	if ((!use_custom_levelset || skip_mod_data_files || (always_use_original_graphics && optional == 'G')) && is_pak_available()) {
 		dat_type* pointer = (dat_type*) calloc(1, sizeof(dat_type));
 		snprintf_check(pointer->filename, sizeof(pointer->filename), "%s", filename);
 		pointer->next_dat = dat_chain_ptr;
@@ -466,6 +466,24 @@ dat_type* open_dat(const char* filename, int optional) {
 			// before checking the root directory, first try mods/MODNAME/
 			snprintf_check(filename_mod, sizeof(filename_mod), "%s/%s", mod_data_path, filename);
 			fp = fopen(filename_mod, "rb");
+			if (fp == NULL) {
+				// Case-insensitive fallback: try lowercase
+				char filename_lower[POP_MAX_PATH];
+				strncpy(filename_lower, filename, sizeof(filename_lower));
+				filename_lower[sizeof(filename_lower) - 1] = '\0';
+				for (char* p = filename_lower; *p; ++p) *p = tolower((unsigned char)*p);
+				snprintf_check(filename_mod, sizeof(filename_mod), "%s/%s", mod_data_path, filename_lower);
+				fp = fopen(filename_mod, "rb");
+			}
+			if (fp == NULL) {
+				// Case-insensitive fallback: try uppercase
+				char filename_upper[POP_MAX_PATH];
+				strncpy(filename_upper, filename, sizeof(filename_upper));
+				filename_upper[sizeof(filename_upper) - 1] = '\0';
+				for (char* p = filename_upper; *p; ++p) *p = toupper((unsigned char)*p);
+				snprintf_check(filename_mod, sizeof(filename_mod), "%s/%s", mod_data_path, filename_upper);
+				fp = fopen(filename_mod, "rb");
+			}
 		}
 		if (fp == NULL && !skip_normal_data_files) {
 			fp = open_dat_from_root_or_data_dir(filename);
@@ -489,7 +507,7 @@ dat_type* open_dat(const char* filename, int optional) {
 			goto failed;
 		pointer->handle = fp;
 		pointer->dat_table = dat_table;
-	} else if (optional == 0) {
+	} else if (optional == 0 && !is_pak_available()) {
 		// showmessage will crash if we call it before certain things are initialized!
 		// Solution: In pop_main(), I moved the first open_dat() call after init_copyprot_dialog().
 		// /*
@@ -901,8 +919,22 @@ image_type* decode_image(image_data_type* image_data, dat_pal_type* palette) {
 
 // seg009:121A
 image_type* load_image(int resource_id, dat_pal_type* palette) {
+	bool has_custom_mod_source = false;
+	if (use_custom_levelset && !always_use_original_graphics) {
+		if (mod_has_data_dir) {
+			has_custom_mod_source = true;
+		} else {
+			for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+				if (p->handle != NULL) {
+					has_custom_mod_source = true;
+					break;
+				}
+			}
+		}
+	}
+
 	// First: try instant pak cache from currently open DAT files
-	if (!use_custom_levelset && is_pak_available()) {
+	if (!has_custom_mod_source && is_pak_available()) {
 		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
 			char folder[16];
 			strncpy(folder, p->filename, sizeof(folder));
@@ -3060,7 +3092,7 @@ void load_from_opendats_metadata(int resource_id, const char* extension, FILE** 
 				fp = fopen(locate_file(image_filename), "rb");
 			}
 			else {
-				if (!skip_mod_data_files) {
+				if (!skip_mod_data_files && mod_has_data_dir) {
 					char image_filename_mod[POP_MAX_PATH];
 					// before checking data/, first try mods/MODNAME/data/
 					snprintf_check(image_filename_mod, sizeof(image_filename_mod), "%s/%s", mod_data_path, image_filename);
@@ -3115,8 +3147,22 @@ void close_dat(dat_type* pointer) {
 
 // seg009:9F80
 void *load_from_opendats_alloc(int resource, const char* extension, data_location* out_result, int* out_size) {
+	bool has_custom_mod_source = false;
+	if (use_custom_levelset && !always_use_original_graphics) {
+		if (mod_has_data_dir) {
+			has_custom_mod_source = true;
+		} else {
+			for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+				if (p->handle != NULL) {
+					has_custom_mod_source = true;
+					break;
+				}
+			}
+		}
+	}
+
 	// First: try instant pak cache for pal or bin from currently open DAT files
-	if (!use_custom_levelset && is_pak_available()) {
+	if (!has_custom_mod_source && is_pak_available()) {
 		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
 			char folder[16];
 			strncpy(folder, p->filename, sizeof(folder));
@@ -3162,7 +3208,7 @@ void *load_from_opendats_alloc(int resource, const char* extension, data_locatio
 	}
 
 	// Fallback to res.pak if custom levelset didn't provide this data/palette
-	if (is_pak_available()) {
+	if (is_pak_available() && strcmp(extension, "png") != 0) {
 		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
 			char folder[16];
 			strncpy(folder, p->filename, sizeof(folder));
@@ -3185,8 +3231,22 @@ void *load_from_opendats_alloc(int resource, const char* extension, data_locatio
 }
 
 int load_from_opendats_to_area(int resource,void* area,int length, const char* extension) {
+	bool has_custom_mod_source = false;
+	if (use_custom_levelset && !always_use_original_graphics) {
+		if (mod_has_data_dir) {
+			has_custom_mod_source = true;
+		} else {
+			for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
+				if (p->handle != NULL) {
+					has_custom_mod_source = true;
+					break;
+				}
+			}
+		}
+	}
+
 	// First: try instant pak cache
-	if (!use_custom_levelset && is_pak_available()) {
+	if (!has_custom_mod_source && is_pak_available()) {
 		for (dat_type* p = dat_chain_ptr; p != NULL; p = p->next_dat) {
 			char folder[16];
 			strncpy(folder, p->filename, sizeof(folder));

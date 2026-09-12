@@ -19,7 +19,9 @@ echo "=== Deploying SDLPoP-PSP ==="
 PPSSPP_CAT_DIR="${HOME}/.config/ppsspp/PSP/GAME/CAT_Homebrew/${FOLDER}"
 mkdir -p "${PPSSPP_CAT_DIR}"
 cp "${DIST_DIR}/EBOOT.PBP" "${PPSSPP_CAT_DIR}/"
-cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_CAT_DIR}/"
+if [ ! -f "${PPSSPP_CAT_DIR}/SDLPoP.ini" ] || [ "${FORCE_INI:-0}" = "1" ]; then
+    cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_CAT_DIR}/"
+fi
 rm -rf "${PPSSPP_CAT_DIR}/data"
 cp -R "${DIST_DIR}/data" "${PPSSPP_CAT_DIR}/"
 mkdir -p "${PPSSPP_CAT_DIR}/mods"
@@ -31,7 +33,9 @@ echo "[✓] Deployed to PPSSPP Homebrew category: ${PPSSPP_CAT_DIR}"
 PPSSPP_STANDARD_DIR="${HOME}/.config/ppsspp/PSP/GAME/${FOLDER}"
 mkdir -p "${PPSSPP_STANDARD_DIR}"
 cp "${DIST_DIR}/EBOOT.PBP" "${PPSSPP_STANDARD_DIR}/"
-cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_STANDARD_DIR}/"
+if [ ! -f "${PPSSPP_STANDARD_DIR}/SDLPoP.ini" ] || [ "${FORCE_INI:-0}" = "1" ]; then
+    cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_STANDARD_DIR}/"
+fi
 rm -rf "${PPSSPP_STANDARD_DIR}/data"
 cp -R "${DIST_DIR}/data" "${PPSSPP_STANDARD_DIR}/"
 mkdir -p "${PPSSPP_STANDARD_DIR}/mods"
@@ -55,7 +59,10 @@ deploy_hw() {
     ssh "$HOST" "mkdir -p '${target_dir}' '${target_dir}/mods'"
     
     # 1. Direct, instant deployment of binary, config, and packed resource bundles
-    scp -q "${DIST_DIR}/EBOOT.PBP" "${DIST_DIR}/SDLPoP.ini" "${HOST}:${target_dir}/"
+    scp -q "${DIST_DIR}/EBOOT.PBP" "${HOST}:${target_dir}/"
+    if [ "${FORCE_INI:-0}" = "1" ] || ! ssh "$HOST" "test -f '${target_dir}/SDLPoP.ini'" 2>/dev/null; then
+        scp -q "${DIST_DIR}/SDLPoP.ini" "${HOST}:${target_dir}/"
+    fi
     if [ -f "${DIST_DIR}/mods/mods.txt" ]; then
         scp -q "${DIST_DIR}/mods/mods.txt" "${HOST}:${target_dir}/mods/"
     fi
