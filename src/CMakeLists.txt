@@ -130,12 +130,28 @@ elseif(PSP)
 	target_link_libraries(prince PRIVATE
 	${SDL2_LIBRARIES} ${SDL2IMAGE_LIBRARIES}
 	)
+	if(EXISTS "${CMAKE_SOURCE_DIR}/../build/ICON0.png")
+		set(PSP_ICON_PATH "${CMAKE_SOURCE_DIR}/../build/ICON0.png")
+	elseif(EXISTS "${CMAKE_SOURCE_DIR}/../build/ICON0.PNG")
+		set(PSP_ICON_PATH "${CMAKE_SOURCE_DIR}/../build/ICON0.PNG")
+	else()
+		set(PSP_ICON_PATH "${CMAKE_SOURCE_DIR}/iconPSP.png")
+	endif()
+
+	if(EXISTS "${CMAKE_SOURCE_DIR}/../build/PIC1.png")
+		set(PSP_BG_PATH "${CMAKE_SOURCE_DIR}/../build/PIC1.png")
+	elseif(EXISTS "${CMAKE_SOURCE_DIR}/../build/PIC1.PNG")
+		set(PSP_BG_PATH "${CMAKE_SOURCE_DIR}/../build/PIC1.PNG")
+	else()
+		set(PSP_BG_PATH "${CMAKE_SOURCE_DIR}/bgPSP.png")
+	endif()
+
 	create_pbp_file(
 		TARGET prince
 		BUILD_PRX
 		MEMSIZE 1
-		ICON_PATH ${CMAKE_SOURCE_DIR}/iconPSP.png
-		BACKGROUND_PATH ${CMAKE_SOURCE_DIR}/bgPSP.png
+		ICON_PATH ${PSP_ICON_PATH}
+		BACKGROUND_PATH ${PSP_BG_PATH}
 		PREVIEW_PATH NULL
 		TITLE "Prince of Persia"
 	)
