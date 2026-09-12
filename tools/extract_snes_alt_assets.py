@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Extract Sharp X68000 graphics from mods/x68 and bake into data/res_x68.pak
-while preserving the authentic original 12 levels and audio assets.
+Extract SNES Alt graphics (hybrid SNES palette rework by mk1994 / Maurice Kaltofen)
+and bake into data/res_snes_alt.pak while preserving authentic original 12 levels.
 """
 import os
 import sys
@@ -160,7 +160,7 @@ def main():
     mods_x68_dir = os.path.join(base_dir, 'mods', 'x68')
     staging_dir = os.path.join(base_dir, 'build', 'data_x68')
     
-    print("=== Extracting Sharp X68000 Graphics Pack ===")
+    print("=== Extracting SNES Alt Graphics Pack ===")
     
     # 1. Clean and initialize staging directory
     if os.path.exists(staging_dir):
@@ -213,15 +213,11 @@ def main():
         if f.endswith('.pak'):
             os.remove(os.path.join(staging_dir, f))
             
-    # 5. Build res_x68.pak
-    out_pak = os.path.join(base_dir, 'data', 'res_x68.pak')
+    # 5. Build res_snes_alt.pak
+    out_pak = os.path.join(base_dir, 'data', 'res_snes_alt.pak')
     print(f"-> Building PAK archive: {out_pak}...")
     build_pak(staging_dir, out_pak)
-    
-    # 6. Also copy to data/res.pak as the active pack
-    active_pak = os.path.join(base_dir, 'data', 'res.pak')
-    shutil.copy2(out_pak, active_pak)
-    print(f"[✓] Active pack data/res.pak set to Sharp X68000!")
+    print(f"[✓] Successfully built {out_pak}!")
 
 if __name__ == '__main__':
     main()

@@ -64,6 +64,7 @@ void pop_main() {
 
 	load_global_options();
 	check_mod_param();
+	scan_available_paks();
 #ifdef USE_MENU
 	load_ingame_settings();
 #endif

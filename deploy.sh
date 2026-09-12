@@ -55,11 +55,12 @@ deploy_hw() {
     # 1. Direct, instant deployment of binary, config, and packed resource bundles
     scp -q "${DIST_DIR}/EBOOT.PBP" "${DIST_DIR}/SDLPoP.ini" "${HOST}:${target_dir}/"
     ssh "$HOST" "mkdir -p '${target_dir}/data'"
-    for pak in res.pak res_dos.pak res_snes.pak res_x68.pak; do
+    for pak in res_dos.pak res_snes.pak res_snes_alt.pak; do
         if [ -f "${DIST_DIR}/data/${pak}" ]; then
             scp -q "${DIST_DIR}/data/${pak}" "${HOST}:${target_dir}/data/${pak}"
         fi
     done
+    ssh "$HOST" "rm -f '${target_dir}/data/res.pak' '${target_dir}/data/res_x68.pak'"
 
     # 2. Sync mods folder to target
     if [ -d "${DIST_DIR}/mods" ]; then

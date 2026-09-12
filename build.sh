@@ -12,7 +12,7 @@ cd "${BUILD_DIR}"
 psp-cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_PRX=ON
 make -j"$(sysctl -n hw.ncpu)"
 
-if [ ! -f "${SCRIPT_DIR}/data/res.pak" ]; then
+if [ ! -f "${SCRIPT_DIR}/data/res_dos.pak" ]; then
     echo "=== Building Resource Pack ==="
     python3 "${SCRIPT_DIR}/tools/build_pak.py"
 fi

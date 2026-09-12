@@ -19,6 +19,7 @@ The authors of this program may be contacted at https://forum.princed.org
 */
 
 #include "common.h"
+#include "pak.h"
 
 #ifdef USE_MENU
 
@@ -108,6 +109,7 @@ int current_dialog_box;
 const char* current_dialog_text;
 word menu_current_level = 1;
 bool need_close_menu;
+extern int need_full_menu_redraw_count;
 
 enum menu_dialog_ids {
 	DIALOG_NONE,
@@ -165,6 +167,7 @@ enum setting_ids {
 	SETTING_SCALING_TYPE,
 #ifdef __PSP__
 	SETTING_PSP_DISPLAY_MODE,
+	SETTING_GRAPHICS_PACK,
 	SETTING_ENABLE_HUD_SPLIT,
 	SETTING_DECOUPLE_MENU,
 #endif
@@ -414,6 +417,12 @@ setting_type visuals_settings[] = {
 				.explanation = "16:10 - Authentic PoP aspect ratio (436x272).\n"
 				               "16:9 Wide - Fullscreen stretch (480x272).\n"
 				               "4:3 - Authentic DOS CRT pillarbox (362x272)."},
+		{.id = SETTING_GRAPHICS_PACK, .style = SETTING_STYLE_NUMBER, .number_type = SETTING_BYTE,
+				.min = 0, .max = 2, .linked = &graphics_pack_index, .required = &multiple_paks_available,
+				.text = "Graphics pack",
+				.explanation = "DOS - Authentic PC MS-DOS visuals.\n"
+				               "SNES - Super Nintendo 16-bit visuals.\n"
+				               "SNES Alt - Alternative SNES visual rework."},
 		{.id = SETTING_ENABLE_HUD_SPLIT, .style = SETTING_STYLE_TOGGLE, .linked = &enable_hud_split,
 				.text = "HUD 2x integer split",
 				.explanation = "Render 192px playfield at 256px and 8px status bar at 16px (2x integer).\n"
@@ -1198,11 +1207,31 @@ void init_settings_list(setting_type* first_setting, int setting_count) {
 void init_menu() {
 	load_arrowhead_images();
 
+#ifdef __PSP__
+	if (multiple_paks_available) {
+		for (int i = 0; i < visuals_settings_area.setting_count; ++i) {
+			if (visuals_settings[i].id == SETTING_GRAPHICS_PACK) {
+				visuals_settings[i].max = num_available_paks - 1;
+				break;
+			}
+		}
+	} else {
+		for (int i = 0; i < visuals_settings_area.setting_count; ++i) {
+			if (visuals_settings[i].id == SETTING_GRAPHICS_PACK) {
+				memmove(&visuals_settings[i], &visuals_settings[i + 1],
+				        sizeof(setting_type) * (visuals_settings_area.setting_count - 1 - i));
+				visuals_settings_area.setting_count--;
+				break;
+			}
+		}
+	}
+#endif
+
 	init_pause_menu_items(pause_menu_items, COUNT(pause_menu_items));
 	init_pause_menu_items(settings_menu_items, COUNT(settings_menu_items));
 
 	init_settings_list(general_settings, COUNT(general_settings));
-	init_settings_list(visuals_settings, COUNT(visuals_settings));
+	init_settings_list(visuals_settings, visuals_settings_area.setting_count);
 	init_settings_list(gameplay_settings, COUNT(gameplay_settings));
 	init_settings_list(mods_settings, COUNT(mods_settings));
 	init_settings_list(level_settings, COUNT(level_settings));
@@ -1567,6 +1596,18 @@ void set_setting_value(setting_type* setting, int value) {
 
 void increase_setting(setting_type* setting, int old_value) {
 	int new_value;
+#ifdef __PSP__
+	if (setting->id == SETTING_GRAPHICS_PACK) {
+		if (num_available_paks > 1) {
+			byte new_index = (old_value + 1) % num_available_paks;
+			play_menu_sound(sound_20_loose_shake_1);
+			switch_graphics_pack(new_index);
+			were_settings_changed = true;
+			need_full_menu_redraw_count = 2;
+		}
+		return;
+	}
+#endif
 	if (setting->id == SETTING_JOYSTICK_THRESHOLD) {
 		new_value = ((old_value / 1000) + 1) * 1000; // Nearest higher multiple of 1000.
 	} else {
@@ -1580,6 +1621,18 @@ void increase_setting(setting_type* setting, int old_value) {
 
 void decrease_setting(setting_type* setting, int old_value) {
 	int new_value;
+#ifdef __PSP__
+	if (setting->id == SETTING_GRAPHICS_PACK) {
+		if (num_available_paks > 1) {
+			byte new_index = (old_value == 0) ? (num_available_paks - 1) : (old_value - 1);
+			play_menu_sound(sound_20_loose_shake_1);
+			switch_graphics_pack(new_index);
+			were_settings_changed = true;
+			need_full_menu_redraw_count = 2;
+		}
+		return;
+	}
+#endif
 	if (setting->id == SETTING_JOYSTICK_THRESHOLD) {
 		new_value = (((old_value+999) / 1000) - 1) * 1000; // Nearest lower multiple of 1000.
 	} else {
@@ -1608,6 +1661,14 @@ void draw_image_with_blending(image_type* image, int xpos, int ypos) {
 
 #define print_setting_value(setting, value) print_setting_value_(setting, value, alloca(32), 32)
 char* print_setting_value_(setting_type* setting, int value, char* buffer, size_t buffer_size) {
+#ifdef __PSP__
+	if (setting->id == SETTING_GRAPHICS_PACK) {
+		if (value >= 0 && value < num_available_paks) {
+			snprintf_check(buffer, buffer_size, "%s", available_paks[value].name);
+			return buffer;
+		}
+	}
+#endif
 	bool has_name = false;
 	names_list_type* list = setting->names_list;
 	size_t max_len = MIN(MAX_OPTION_VALUE_NAME_LENGTH, buffer_size);
@@ -2420,6 +2481,18 @@ void process_ingame_settings_user_managed(SDL_RWops* rw, rw_process_func_type pr
 	process(key_action    );
 	process(key_enter     );
 	process(key_esc       );
+#ifdef __PSP__
+	process(psp_display_mode);
+	process(enable_hud_split);
+	process(decouple_menu_overlay);
+	process(graphics_pack_index);
+	if (num_available_paks > 0) {
+		if (graphics_pack_index >= num_available_paks) {
+			graphics_pack_index = 0;
+		}
+		snprintf_check(graphics_pack_name, sizeof(graphics_pack_name), "%s", available_paks[graphics_pack_index].id);
+	}
+#endif
 }
 
 void process_ingame_settings_mod_managed(SDL_RWops* rw, rw_process_func_type process_func) {
@@ -2508,8 +2581,9 @@ void save_ingame_settings(void) {
 void load_ingame_settings(void) {
 	// We want the SDLPoP.cfg file (in-game menu settings) to override the SDLPoP.ini file,
 	// but ONLY if the .ini file wasn't modified since the last time the .cfg file was saved!
-	struct stat st_ini, st_cfg;
 	const char* cfg_filename = locate_file("SDLPoP.cfg");
+#ifndef __PSP__
+	struct stat st_ini, st_cfg;
 	const char* ini_filename = locate_file("SDLPoP.ini");
 	if (stat( cfg_filename, &st_cfg ) == 0 && stat( ini_filename, &st_ini ) == 0) {
 		if (st_ini.st_mtime > st_cfg.st_mtime ) {
@@ -2517,6 +2591,7 @@ void load_ingame_settings(void) {
 			return;
 		}
 	}
+#endif
 	// If there is a SDLPoP.cfg file, let it override the settings
 	SDL_RWops* rw = SDL_RWFromFile(cfg_filename, "rb");
 	if (rw != NULL) {
