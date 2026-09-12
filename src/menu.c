@@ -2045,10 +2045,10 @@ void draw_setting(setting_type* setting, rect_type* parent, int* y_offset, int i
 						snprintf_check(pending_mod_name, sizeof(pending_mod_name), "%s", mod_folder_names[mod_idx]);
 						current_dialog_box = DIALOG_CONFIRM_RESTART_MOD;
 						if (mod_idx == 0) {
-							current_dialog_text = "Switch to Original Game?\nRestart required to apply.";
+							current_dialog_text = "Switch to Original Game?\nGame will restart to apply.";
 						} else {
 							snprintf(pending_mod_dialog_text, sizeof(pending_mod_dialog_text),
-							         "Switch to mod '%s'?\nRestart required to apply.", mod_folder_names[mod_idx]);
+							         "Switch to mod '%s'?\nGame will restart to apply.", mod_folder_names[mod_idx]);
 							current_dialog_text = pending_mod_dialog_text;
 						}
 					}
@@ -2284,22 +2284,28 @@ void confirmation_dialog_result(int which_dialog, int button) {
 			key_test_quit();
 		} else if (which_dialog == DIALOG_CONFIRM_RESTART_MOD) {
 			play_menu_sound(sound_10_sword_vs_sword);
+
+			// 1. Write the new choice to SDLPoP.ini and delete SDLPoP.cfg
 			save_mod_to_ini(pending_mod_name);
 			were_settings_changed = false;
-#ifdef __PSP__
-			if (g_argv != NULL && g_argv[0] != NULL) {
-				restore_stuff();
-				struct SceKernelLoadExecParam param;
-				memset(&param, 0, sizeof(param));
-				param.size = sizeof(param);
-				param.args = (SceSize)strlen(g_argv[0]) + 1;
-				param.argp = g_argv[0];
-				param.key = "game";
-				sceKernelLoadExec(g_argv[0], &param);
+
+			// 2. Set levelset in memory
+			if (strcasecmp(pending_mod_name, "original") == 0) {
+				use_custom_levelset = 0;
+				levelset_name[0] = '\0';
+			} else {
+				use_custom_levelset = 1;
+				snprintf_check(levelset_name, sizeof(levelset_name), "%s", pending_mod_name);
 			}
-#endif
-			last_key_scancode = SDL_SCANCODE_Q | WITH_CTRL;
-			key_test_quit();
+
+			// 3. Reload mod options and graphics/sound resources
+			load_mod_options();
+			reload_resources();
+
+			// 4. Close menu cleanly and restart the game in-place
+			if (is_menu_shown) menu_was_closed();
+			start_level = -1;
+			start_game();
 		}
 	} else {
 		play_menu_sound(sound_22_loose_shake_3);

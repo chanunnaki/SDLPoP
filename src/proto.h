@@ -694,6 +694,7 @@ void replay_cycle(void);
 int load_replay(void);
 void key_press_while_recording(int* key_ptr);
 void key_press_while_replaying(int* key_ptr);
+void reload_resources(void);
 #endif
 
 // lighting.c
