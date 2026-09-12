@@ -524,6 +524,9 @@ void load_global_options() {
 #ifndef __PSP__
 	load_dos_exe_modifications("."); // read PRINCE.EXE in the current working directory
 #endif
+	struct stat st_data_music;
+	const char* data_music_path = locate_file("data/music");
+	data_has_music_dir = (stat(data_music_path, &st_data_music) == 0 && S_ISDIR(st_data_music.st_mode));
 }
 
 void check_mod_param() {
@@ -819,6 +822,10 @@ void load_mod_options() {
 				snprintf_check(mod_data_dir_check, sizeof(mod_data_dir_check), "%s/data", located_folder_name);
 				struct stat st_data;
 				mod_has_data_dir = (stat(mod_data_dir_check, &st_data) == 0 && S_ISDIR(st_data.st_mode));
+				char mod_music_dir_check[POP_MAX_PATH];
+				snprintf_check(mod_music_dir_check, sizeof(mod_music_dir_check), "%s/music", located_folder_name);
+				struct stat st_music;
+				mod_has_music_dir = (stat(mod_music_dir_check, &st_music) == 0 && S_ISDIR(st_music.st_mode));
 				// Try to load PRINCE.EXE (DOS)
 				load_dos_exe_modifications(located_folder_name);
 				// Try to load mod.ini
@@ -848,6 +855,7 @@ void load_mod_options() {
 			use_custom_levelset = 0;
 			levelset_name[0] = '\0';
 			mod_has_data_dir = false;
+			mod_has_music_dir = false;
 		}
 	}
 	turn_fixes_and_enhancements_on_off(use_fixes_and_enhancements);

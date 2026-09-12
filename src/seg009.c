@@ -2296,8 +2296,8 @@ void init_digi() {
 
 const int sound_channel = 0;
 const int max_sound_id = 58;
-
 void load_sound_names() {
+	if (!data_has_music_dir && !mod_has_music_dir) return;
 	const char* names_path = locate_file("data/music/names.txt");
 	if (sound_names != NULL) return;
 	FILE* fp = fopen(names_path,"rt");
@@ -2337,19 +2337,19 @@ sound_buffer_type* load_sound(int index) {
 		//printf("Trying to load from music folder\n");
 
 		//load_sound_names();  // Moved to load_sounds()
-		if (sound_names != NULL && sound_name(index) != NULL) {
+		if ((mod_has_music_dir || data_has_music_dir) && sound_names != NULL && sound_name(index) != NULL) {
 			//printf("Loading from music folder\n");
 			do {
 				char filename[POP_MAX_PATH];
 				const char* target_file = NULL;
-				if (!skip_mod_data_files) {
+				if (!skip_mod_data_files && mod_has_music_dir) {
 					// before checking the root directory, first try mods/MODNAME/
 					snprintf_check(filename, sizeof(filename), "%s/music/%s.ogg", mod_data_path, sound_name(index));
 					if (file_exists(filename)) {
 						target_file = filename;
 					}
 				}
-				if (target_file == NULL && !skip_normal_data_files) {
+				if (target_file == NULL && !skip_normal_data_files && data_has_music_dir) {
 					snprintf_check(filename, sizeof(filename), "data/music/%s.ogg", sound_name(index));
 					const char* loc = locate_file(filename);
 					if (file_exists(loc)) {
@@ -2359,6 +2359,7 @@ sound_buffer_type* load_sound(int index) {
 				if (target_file == NULL) {
 					break;
 				}
+
 
 				result = malloc(sizeof(sound_buffer_type));
 				if (result == NULL) break;
@@ -4132,7 +4133,11 @@ void do_simple_wait(int timer_index) {
 #endif
 	update_screen();
 	while (! has_timer_stopped(timer_index)) {
+#ifdef __PSP__
+		sceKernelDelayThreadCB(1000);
+#else
 		SDL_Delay(1);
+#endif
 		process_events();
 	}
 }
@@ -4144,7 +4149,11 @@ int do_wait(int timer_index) {
 #endif
 	update_screen();
 	while (! has_timer_stopped(timer_index)) {
+#ifdef __PSP__
+		sceKernelDelayThreadCB(1000);
+#else
 		SDL_Delay(1);
+#endif
 		process_events();
 		int key = do_paused();
 		if (key != 0 && (word_1D63A != 0 || key == 0x1B)) return 1;

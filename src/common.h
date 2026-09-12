@@ -38,6 +38,10 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef __PSP__
+#include <pspkernel.h>
+#endif
+
 #ifndef _MSC_VER // unistd.h does not exist in the Windows SDK.
 #include <unistd.h>
 #else

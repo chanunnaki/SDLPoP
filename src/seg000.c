@@ -2011,7 +2011,7 @@ void show_title() {
 	offscreen_surface = make_offscreen_buffer(&screen_rect);
 	load_title_images(1);
 	current_target_surface = offscreen_surface;
-	idle(); // modified
+	process_events();
 	CHECK_INTRO_SKIP();
 
 	draw_full_image(TITLE_MAIN);
