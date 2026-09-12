@@ -101,3 +101,4 @@ custom levels/
 
 *.dylib
 tools/__pycache__
+*.zip
