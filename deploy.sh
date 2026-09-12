@@ -22,7 +22,10 @@ cp "${DIST_DIR}/EBOOT.PBP" "${PPSSPP_CAT_DIR}/"
 cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_CAT_DIR}/"
 rm -rf "${PPSSPP_CAT_DIR}/data"
 cp -R "${DIST_DIR}/data" "${PPSSPP_CAT_DIR}/"
-rm -rf "${PPSSPP_CAT_DIR}/mods"
+mkdir -p "${PPSSPP_CAT_DIR}/mods"
+if [ -f "${DIST_DIR}/mods/mods.txt" ]; then
+    cp -p "${DIST_DIR}/mods/mods.txt" "${PPSSPP_CAT_DIR}/mods/"
+fi
 echo "[✓] Deployed to PPSSPP Homebrew category: ${PPSSPP_CAT_DIR}"
 
 PPSSPP_STANDARD_DIR="${HOME}/.config/ppsspp/PSP/GAME/${FOLDER}"
@@ -31,7 +34,10 @@ cp "${DIST_DIR}/EBOOT.PBP" "${PPSSPP_STANDARD_DIR}/"
 cp "${DIST_DIR}/SDLPoP.ini" "${PPSSPP_STANDARD_DIR}/"
 rm -rf "${PPSSPP_STANDARD_DIR}/data"
 cp -R "${DIST_DIR}/data" "${PPSSPP_STANDARD_DIR}/"
-rm -rf "${PPSSPP_STANDARD_DIR}/mods"
+mkdir -p "${PPSSPP_STANDARD_DIR}/mods"
+if [ -f "${DIST_DIR}/mods/mods.txt" ]; then
+    cp -p "${DIST_DIR}/mods/mods.txt" "${PPSSPP_STANDARD_DIR}/mods/"
+fi
 echo "[✓] Deployed to PPSSPP standard Game dir: ${PPSSPP_STANDARD_DIR}"
 
 # 2. Hardware Deployment (nexus-b via ssh n)
@@ -46,10 +52,13 @@ deploy_hw() {
     fi
 
     echo "[*] Found ${unit} mounted on ${HOST}. Deploying to ${target_dir}..."
-    ssh "$HOST" "mkdir -p '${target_dir}'"
+    ssh "$HOST" "mkdir -p '${target_dir}' '${target_dir}/mods'"
     
     # 1. Direct, instant deployment of binary, config, and packed resource bundles
     scp -q "${DIST_DIR}/EBOOT.PBP" "${DIST_DIR}/SDLPoP.ini" "${HOST}:${target_dir}/"
+    if [ -f "${DIST_DIR}/mods/mods.txt" ]; then
+        scp -q "${DIST_DIR}/mods/mods.txt" "${HOST}:${target_dir}/mods/"
+    fi
     ssh "$HOST" "mkdir -p '${target_dir}/data'"
     for pak in res_dos.pak res_snes.pak res_snes_alt.pak; do
         if [ -f "${DIST_DIR}/data/${pak}" ]; then
@@ -57,7 +66,6 @@ deploy_hw() {
         fi
     done
     ssh "$HOST" "rm -f '${target_dir}/data/res.pak' '${target_dir}/data/res_x68.pak'"
-    ssh "$HOST" "rm -rf '${target_dir}/mods'"
 
     # 2. Clean up stale runtime cfg so new ini takes effect immediately
     ssh "$HOST" "rm -f '${target_dir}/SDLPoP.cfg'"
