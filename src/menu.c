@@ -20,6 +20,7 @@ The authors of this program may be contacted at https://forum.princed.org
 
 #include "common.h"
 #include "pak.h"
+#include <dirent.h>
 
 #ifdef USE_MENU
 
@@ -75,6 +76,7 @@ enum pause_menu_item_ids {
 	SETTINGS_MENU_GENERAL,
 	SETTINGS_MENU_GAMEPLAY,
 	SETTINGS_MENU_VISUALS,
+	SETTINGS_MENU_CUSTOMIZE,
 	SETTINGS_MENU_MODS,
 	SETTINGS_MENU_LEVEL_CUSTOMIZATION,
 	SETTINGS_MENU_BACK,
@@ -116,17 +118,19 @@ enum menu_dialog_ids {
 	DIALOG_RESTORE_DEFAULT_SETTINGS,
 	DIALOG_CONFIRM_QUIT,
 	DIALOG_SELECT_LEVEL,
+	DIALOG_CONFIRM_RESTART_MOD,
 };
 
 pause_menu_item_type settings_menu_items[] = {
-		{.id = SETTINGS_MENU_GENERAL, .text = "GENERAL"},
-		{.id = SETTINGS_MENU_GAMEPLAY, .text = "GAMEPLAY"},
-		{.id = SETTINGS_MENU_VISUALS, .text = "VISUALS"},
-		{.id = SETTINGS_MENU_MODS, .text = "CUSTOMIZE"},
+		{.id = SETTINGS_MENU_GENERAL,   .text = "GENERAL"},
+		{.id = SETTINGS_MENU_GAMEPLAY,  .text = "GAMEPLAY"},
+		{.id = SETTINGS_MENU_VISUALS,   .text = "VISUALS"},
+		{.id = SETTINGS_MENU_CUSTOMIZE, .text = "CUSTOMIZE"},
+		{.id = SETTINGS_MENU_MODS,      .text = "MODS"},
 #ifndef __PSP__
-		{.id = SETTINGS_MENU_CONTROLS, .text = "CONTROLS"},
+		{.id = SETTINGS_MENU_CONTROLS,  .text = "CONTROLS"},
 #endif
-		{.id = SETTINGS_MENU_BACK, .text = "BACK"},
+		{.id = SETTINGS_MENU_BACK,      .text = "BACK"},
 };
 int active_settings_subsection = 0;
 int highlighted_settings_subsection = 0;
@@ -1155,6 +1159,161 @@ settings_area_type level_settings_area = { .settings = level_settings, .setting_
 settings_area_type controls_settings_area = { .settings = controls_settings, .setting_count = COUNT(controls_settings)};
 #endif
 
+#define MAX_MODS_COUNT 64
+#define SETTING_MOD_ITEM_BASE 2000
+
+static char mod_folder_names[MAX_MODS_COUNT][POP_MAX_PATH];
+static setting_type mod_list_settings[MAX_MODS_COUNT];
+static settings_area_type mods_list_area = { .settings = mod_list_settings, .setting_count = 0 };
+
+static char pending_mod_name[POP_MAX_PATH];
+static char pending_mod_dialog_text[256];
+
+void init_settings_list(setting_type* first_setting, int setting_count);
+
+static bool is_mod_active(int index) {
+	if (index == 0) {
+		return (!use_custom_levelset || levelset_name[0] == '\0' || strcasecmp(levelset_name, "original") == 0);
+	} else {
+		return (use_custom_levelset && strcasecmp(levelset_name, mod_folder_names[index]) == 0);
+	}
+}
+
+static int get_active_mod_setting_id(void) {
+	for (int i = 0; i < mods_list_area.setting_count; ++i) {
+		if (is_mod_active(i)) {
+			return SETTING_MOD_ITEM_BASE + i;
+		}
+	}
+	return SETTING_MOD_ITEM_BASE;
+}
+
+static int mod_name_cmp(const void* a, const void* b) {
+	const char* str_a = *(const char* const*)a;
+	const char* str_b = *(const char* const*)b;
+	return strcasecmp(str_a, str_b);
+}
+
+static void populate_mods_list(void) {
+	int count = 0;
+
+	// 1. Slot 0 is always the Original Game
+	snprintf_check(mod_folder_names[0], sizeof(mod_folder_names[0]), "original");
+
+	memset(&mod_list_settings[0], 0, sizeof(setting_type));
+	mod_list_settings[0].id = SETTING_MOD_ITEM_BASE;
+	mod_list_settings[0].style = SETTING_STYLE_TEXT_ONLY;
+	snprintf_check(mod_list_settings[0].text, sizeof(mod_list_settings[0].text), "Original Game");
+	snprintf_check(mod_list_settings[0].explanation, sizeof(mod_list_settings[0].explanation),
+	               "Play authentic Prince of Persia levels.\nPress Enter/Cross to select.");
+	count = 1;
+
+	// 2. Scan mods directory
+	const char* mods_dir_path = locate_file(mods_folder);
+	DIR* dir = opendir(mods_dir_path);
+	if (dir != NULL) {
+		char scanned_names[MAX_MODS_COUNT][POP_MAX_PATH];
+		const char* sort_ptrs[MAX_MODS_COUNT];
+		int scanned_count = 0;
+
+		struct dirent* entry;
+		while ((entry = readdir(dir)) != NULL && scanned_count < (MAX_MODS_COUNT - 1)) {
+			if (entry->d_name[0] == '.' || strcasecmp(entry->d_name, "mods.txt") == 0) continue;
+
+			char full_path[POP_MAX_PATH];
+			snprintf_check(full_path, sizeof(full_path), "%s/%s", mods_dir_path, entry->d_name);
+			struct stat st;
+			if (stat(full_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+				snprintf_check(scanned_names[scanned_count], sizeof(scanned_names[scanned_count]), "%s", entry->d_name);
+				sort_ptrs[scanned_count] = scanned_names[scanned_count];
+				scanned_count++;
+			}
+		}
+		closedir(dir);
+
+		if (scanned_count > 1) {
+			qsort(sort_ptrs, scanned_count, sizeof(const char*), mod_name_cmp);
+		}
+
+		for (int i = 0; i < scanned_count && count < MAX_MODS_COUNT; ++i) {
+			snprintf_check(mod_folder_names[count], sizeof(mod_folder_names[count]), "%s", sort_ptrs[i]);
+
+			memset(&mod_list_settings[count], 0, sizeof(setting_type));
+			mod_list_settings[count].id = SETTING_MOD_ITEM_BASE + count;
+			mod_list_settings[count].style = SETTING_STYLE_TEXT_ONLY;
+			snprintf_check(mod_list_settings[count].text, sizeof(mod_list_settings[count].text), "%s", sort_ptrs[i]);
+			snprintf_check(mod_list_settings[count].explanation, sizeof(mod_list_settings[count].explanation),
+			               "Custom levelset from mods/%s.\nPress Enter/Cross to select.", sort_ptrs[i]);
+			count++;
+		}
+	}
+
+	mods_list_area.setting_count = count;
+	init_settings_list(mod_list_settings, count);
+}
+
+static bool save_mod_to_ini(const char* mod_name) {
+	const char* ini_path = locate_file("SDLPoP.ini");
+	const char* cfg_path = locate_file("SDLPoP.cfg");
+
+	if (cfg_path != NULL && file_exists(cfg_path)) {
+		remove(cfg_path);
+	}
+
+	FILE* in = fopen(ini_path, "r");
+	if (!in) return false;
+
+	char tmp_path[POP_MAX_PATH];
+	snprintf_check(tmp_path, sizeof(tmp_path), "%s.tmp", ini_path);
+	FILE* out = fopen(tmp_path, "w");
+	if (!out) {
+		fclose(in);
+		return false;
+	}
+
+	char line[512];
+	bool replaced = false;
+	while (fgets(line, sizeof(line), in)) {
+		char* p = line;
+		while (*p == ' ' || *p == '\t') p++;
+
+		if (strncasecmp(p, "levelset", 8) == 0) {
+			char* q = p + 8;
+			while (*q == ' ' || *q == '\t') q++;
+			if (*q == '=') {
+				fprintf(out, "levelset = %s\n", mod_name);
+				replaced = true;
+				continue;
+			}
+		}
+		fputs(line, out);
+	}
+
+	if (!replaced) {
+		fprintf(out, "\nlevelset = %s\n", mod_name);
+	}
+
+	fclose(in);
+	fclose(out);
+
+	remove(ini_path);
+	if (rename(tmp_path, ini_path) != 0) {
+		FILE* src = fopen(tmp_path, "rb");
+		FILE* dst = fopen(ini_path, "wb");
+		if (src && dst) {
+			char buf[1024];
+			size_t bytes;
+			while ((bytes = fread(buf, 1, sizeof(buf), src)) > 0) {
+				fwrite(buf, 1, bytes, dst);
+			}
+		}
+		if (src) fclose(src);
+		if (dst) fclose(dst);
+		remove(tmp_path);
+	}
+	return true;
+}
+
 settings_area_type* get_settings_area(int menu_item_id) {
 	switch(menu_item_id) {
 		default:
@@ -1165,8 +1324,10 @@ settings_area_type* get_settings_area(int menu_item_id) {
 			return &gameplay_settings_area;
 		case SETTINGS_MENU_VISUALS:
 			return &visuals_settings_area;
-		case SETTINGS_MENU_MODS:
+		case SETTINGS_MENU_CUSTOMIZE:
 			return &mods_settings_area;
+		case SETTINGS_MENU_MODS:
+			return &mods_list_area;
 		case SETTINGS_MENU_LEVEL_CUSTOMIZATION:
 			return &level_settings_area;
 #ifndef __PSP__
@@ -1235,6 +1396,7 @@ void init_menu() {
 	init_settings_list(gameplay_settings, COUNT(gameplay_settings));
 	init_settings_list(mods_settings, COUNT(mods_settings));
 	init_settings_list(level_settings, COUNT(level_settings));
+	populate_mods_list();
 #ifndef __PSP__
 	init_settings_list(controls_settings, COUNT(controls_settings));
 #endif
@@ -1281,15 +1443,28 @@ void play_menu_sound(int sound_id) {
 }
 
 void enter_settings_subsection(int settings_menu_id) {
+	if (settings_menu_id == SETTINGS_MENU_MODS) {
+		populate_mods_list();
+	}
 	settings_area_type* settings_area = get_settings_area(settings_menu_id);
 	if (active_settings_subsection != settings_menu_id) {
-		highlighted_setting_id = settings_area->settings[0].id;
+		if (settings_menu_id == SETTINGS_MENU_MODS) {
+			highlighted_setting_id = get_active_mod_setting_id();
+		} else {
+			highlighted_setting_id = settings_area->settings[0].id;
+		}
 	}
 	active_settings_subsection = settings_menu_id;
 	highlighted_settings_subsection = settings_menu_id;
 	if (!mouse_clicked) hovering_pause_menu_item = 0;
 	controlled_area = 1;
 	scroll_position = 0;
+	if (settings_menu_id == SETTINGS_MENU_MODS) {
+		int active_idx = highlighted_setting_id - SETTING_MOD_ITEM_BASE;
+		if (active_idx > 8) {
+			scroll_position = active_idx - 8;
+		}
+	}
 
 	// Special case: for the level customization submenu, the linked variables should depend on menu_current_level.
 	// So we need to initialize them now.
@@ -1326,7 +1501,7 @@ void enter_settings_subsection(int settings_menu_id) {
 
 void leave_settings_subsection(void) {
 	if (active_settings_subsection == SETTINGS_MENU_LEVEL_CUSTOMIZATION) {
-		enter_settings_subsection(SETTINGS_MENU_MODS);
+		enter_settings_subsection(SETTINGS_MENU_CUSTOMIZE);
 	} else {
 		// Go back to the top level of the settings menu.
 		controlled_area = 0;
@@ -1381,6 +1556,7 @@ void pause_menu_clicked(pause_menu_item_type* item) {
 		case SETTINGS_MENU_GENERAL:
 		case SETTINGS_MENU_GAMEPLAY:
 		case SETTINGS_MENU_VISUALS:
+		case SETTINGS_MENU_CUSTOMIZE:
 		case SETTINGS_MENU_MODS:
 #ifndef __PSP__
 		case SETTINGS_MENU_CONTROLS:
@@ -1646,6 +1822,13 @@ void decrease_setting(setting_type* setting, int old_value) {
 
 
 void draw_setting_explanation(setting_type* setting) {
+	if (setting->id >= SETTING_MOD_ITEM_BASE && setting->id < SETTING_MOD_ITEM_BASE + MAX_MODS_COUNT) {
+		int mod_idx = setting->id - SETTING_MOD_ITEM_BASE;
+		if (is_mod_active(mod_idx)) {
+			show_text_with_color(&explanation_rect, halign_center, valign_top, "Currently active levelset.", color_7_lightgray);
+			return;
+		}
+	}
 	show_text_with_color(&explanation_rect, halign_center, valign_top, setting->explanation, color_7_lightgray);
 }
 
@@ -1834,6 +2017,13 @@ void draw_setting(setting_type* setting, rect_type* parent, int* y_offset, int i
 
 	} else {
 		// show text only
+		if (setting->id >= SETTING_MOD_ITEM_BASE && setting->id < SETTING_MOD_ITEM_BASE + MAX_MODS_COUNT) {
+			int mod_idx = setting->id - SETTING_MOD_ITEM_BASE;
+			if (is_mod_active(mod_idx)) {
+				show_text_with_color(&text_rect, halign_right, valign_top, "ACTIVE", color_10_brightgreen);
+			}
+		}
+
 		if (highlighted_setting_id == setting->id && (setting->required == NULL || *(sbyte*)setting->required != 0)) {
 			if (pressed_enter || (mouse_clicked && is_mouse_over_rect(&setting_box))) {
 				if (setting->id == SETTING_RESET_ALL_SETTINGS) {
@@ -1843,6 +2033,22 @@ void draw_setting(setting_type* setting, rect_type* parent, int* y_offset, int i
 				} else if (setting->id == SETTING_LEVEL_SETTINGS) {
 					play_menu_sound(sound_22_loose_shake_3);
 					current_dialog_box = DIALOG_SELECT_LEVEL;
+				} else if (setting->id >= SETTING_MOD_ITEM_BASE && setting->id < SETTING_MOD_ITEM_BASE + MAX_MODS_COUNT) {
+					int mod_idx = setting->id - SETTING_MOD_ITEM_BASE;
+					if (is_mod_active(mod_idx)) {
+						play_menu_sound(sound_21_loose_shake_2);
+					} else {
+						play_menu_sound(sound_22_loose_shake_3);
+						snprintf_check(pending_mod_name, sizeof(pending_mod_name), "%s", mod_folder_names[mod_idx]);
+						current_dialog_box = DIALOG_CONFIRM_RESTART_MOD;
+						if (mod_idx == 0) {
+							current_dialog_text = "Switch to Original Game?\nRestart required to apply.";
+						} else {
+							snprintf(pending_mod_dialog_text, sizeof(pending_mod_dialog_text),
+							         "Switch to mod '%s'?\nRestart required to apply.", mod_folder_names[mod_idx]);
+							current_dialog_text = pending_mod_dialog_text;
+						}
+					}
 				}
 			}
 
@@ -2073,9 +2279,18 @@ void confirmation_dialog_result(int which_dialog, int button) {
 		} else if (which_dialog == DIALOG_CONFIRM_QUIT) {
 			last_key_scancode = SDL_SCANCODE_Q | WITH_CTRL;
 			key_test_quit();
+		} else if (which_dialog == DIALOG_CONFIRM_RESTART_MOD) {
+			play_menu_sound(sound_10_sword_vs_sword);
+			save_mod_to_ini(pending_mod_name);
+			were_settings_changed = false;
+			last_key_scancode = SDL_SCANCODE_Q | WITH_CTRL;
+			key_test_quit();
 		}
 	} else {
 		play_menu_sound(sound_22_loose_shake_3);
+		if (which_dialog == DIALOG_CONFIRM_RESTART_MOD) {
+			pending_mod_name[0] = '\0';
+		}
 	}
 }
 
@@ -2171,7 +2386,7 @@ void draw_select_level_dialog(void) {
 			menu_current_level = MIN(15, menu_current_level + 1);
 		} else if (mouse_clicked || pressed_enter) {
 			enter_settings_subsection(SETTINGS_MENU_LEVEL_CUSTOMIZATION);
-			highlighted_settings_subsection = SETTINGS_MENU_MODS;
+			highlighted_settings_subsection = SETTINGS_MENU_CUSTOMIZE;
 			play_menu_sound(sound_22_loose_shake_3);
 			break;
 		}
