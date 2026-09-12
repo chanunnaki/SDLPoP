@@ -21,6 +21,9 @@ The authors of this program may be contacted at https://forum.princed.org
 #include "common.h"
 #include "pak.h"
 #include <dirent.h>
+#ifdef __PSP__
+#include <psploadexec.h>
+#endif
 
 #ifdef USE_MENU
 
@@ -2283,6 +2286,18 @@ void confirmation_dialog_result(int which_dialog, int button) {
 			play_menu_sound(sound_10_sword_vs_sword);
 			save_mod_to_ini(pending_mod_name);
 			were_settings_changed = false;
+#ifdef __PSP__
+			if (g_argv != NULL && g_argv[0] != NULL) {
+				restore_stuff();
+				struct SceKernelLoadExecParam param;
+				memset(&param, 0, sizeof(param));
+				param.size = sizeof(param);
+				param.args = (SceSize)strlen(g_argv[0]) + 1;
+				param.argp = g_argv[0];
+				param.key = "game";
+				sceKernelLoadExec(g_argv[0], &param);
+			}
+#endif
 			last_key_scancode = SDL_SCANCODE_Q | WITH_CTRL;
 			key_test_quit();
 		}
