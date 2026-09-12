@@ -56,9 +56,9 @@ Native port of **Prince of Persia** (SDLPoP) for the Sony PlayStation Portable (
 
 1. Download or build `EBOOT.PBP`.
 2. Connect your PSP to your computer via USB (or insert the Memory Stick).
-3. Copy the `SDLPoP` folder to:
+3. Copy the `SDLPoP-PSP` folder to:
    ```
-   ms0:/PSP/GAME/SDLPoP/
+   ms0:/PSP/GAME/SDLPoP-PSP/
    ├── EBOOT.PBP
    ├── SDLPoP.ini
    └── data/
