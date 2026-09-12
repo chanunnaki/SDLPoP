@@ -32,6 +32,11 @@ Native port of **Prince of Persia** (SDLPoP) for the Sony PlayStation Portable (
   - Increased DMA audio buffer to 2048 samples (46.4ms) to eliminate buffer underruns and comb-filter phasing on hardware.
   - Safe saturation clamping to $[-32768, 32767]$ prevents digital clipping when music and sound effects overlap.
   - Lightweight stack chunk mixing replaces per-chunk heap allocations in real-time audio thread.
+- **In-Game MODS & Levelset Selector**:
+  - Dynamically scans the `mods/` directory and lists custom mods alongside the **Original Game** directly inside the in-game menu (**Settings $\to$ MODS**).
+  - Displays active levelset status (`ACTIVE` indicator) and switches mods on-the-fly without returning to the PSP XMB.
+  - Seamless in-memory soft reset reloads graphics, sounds, and levels, restarting directly into the mod's title and intro sequence.
+  - Safe error recovery: if a configured mod folder is missing or deleted, the game warns the player, automatically reverts to the original game, and heals `SDLPoP.ini`.
 - **Ergonomic Handheld Controls**:
   - Smooth action on Face buttons and Shoulder triggers tailored for handheld play.
 
@@ -61,9 +66,33 @@ Native port of **Prince of Persia** (SDLPoP) for the Sony PlayStation Portable (
    ms0:/PSP/GAME/SDLPoP-PSP/
    ├── EBOOT.PBP
    ├── SDLPoP.ini
-   └── data/
+   ├── data/
+   └── mods/
+       ├── Princess of Persia/
+       └── ...
    ```
 4. Disconnect USB and launch **Prince of Persia** from **Game $\to$ Memory Stick** on your PSP XMB.
+
+---
+
+## Custom Mods Support
+
+SDLPoP-PSP features full native support for custom levelsets and total conversion mods (available from [popot.org](https://www.popot.org/custom_levels.php)):
+
+### Installing Mods
+1. Create or open the `mods/` directory inside your game folder:
+   ```
+   ms0:/PSP/GAME/SDLPoP-PSP/mods/
+   ```
+2. Place any mod folder inside `mods/` (for example: `mods/Princess of Persia/`).
+3. **Important for PSP / FAT32**: All `.DAT` files inside the mod directory must have uppercase names and extensions (e.g. `LEVELS.DAT`, `PRINCE.DAT`, `TITLE.DAT`).
+4. Custom EXE modifications (`PRINCE.EXE`) and mod configs (`mod.ini`) inside the mod folder are fully supported and loaded automatically.
+
+### Switching Mods In-Game
+1. Press **Start** during gameplay to open the pause menu.
+2. Navigate to **Settings $\to$ MODS**.
+3. Highlight your desired mod (or **Original Game**) and press **Cross ($\times$)**.
+4. Confirm the restart prompt. SDLPoP-PSP will immediately write the choice to `SDLPoP.ini`, reload all assets, and smoothly soft-reset directly into the mod's title and intro sequence!
 
 ---
 
@@ -103,6 +132,11 @@ Automatically detects and deploys to:
 Configure settings in `SDLPoP.ini` or on-the-fly in the in-game **Settings $\to$ Visuals** menu:
 
 ```ini
+; Levelset / Mod Selector:
+; * original          = Play authentic Prince of Persia levels (default)
+; * <Folder_Name>     = Load custom levelset from mods/<Folder_Name> (e.g. Princess of Persia)
+levelset = original
+
 ; Graphics Pack Selector:
 ; * dos      = Classic DOS PC graphics (res_dos.pak) (default)
 ; * snes     = Super Nintendo 16-bit graphics (res_snes.pak)
